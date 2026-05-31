@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>回声 AI 小队 · 2026 年度复盘</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f7f6f3; --paper-2:#efeee9; --ink:#14140f; --ink-2:#2b2b25;
+    --grey:#8a887e; --grey-2:#b9b7ad; --line:#d9d7ce; --line-2:#c4c2b8;
+    --red:#e8482b; --dark:#14140f;
+    --display:"Inter","Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --body:"Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --num:"Inter","Helvetica Neue",Arial,sans-serif;
+    --mono:"Space Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#0a0a08;overflow:hidden}
+  body{font-family:var(--body);color:var(--ink)}
+
+  /* ---------- 16:9 stage, scaled to viewport ---------- */
+  .stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%);transform-origin:center center;background:var(--paper);overflow:hidden}
+  .slide{position:absolute;inset:0;padding:64px 84px;display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;transform:translateX(28px);
+    transition:opacity .32s ease,transform .32s ease,visibility 0s linear .32s}
+  .slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .32s ease,transform .32s ease}
+  .slide.is-prev{transform:translateX(-28px)}
+
+  /* shared atoms */
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:13px}
+  .eyebrow .rule{width:38px;height:2px;background:var(--red)}
+  .spacer{flex:1}
+  .red{color:var(--red)}
+  .grey{color:var(--grey)}
+  b{font-weight:800;color:var(--ink)}
+
+  /* report header strip on most slides */
+  .rib{position:absolute;top:30px;left:84px;right:84px;display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--grey)}
+  .rib span b{color:var(--ink);font-weight:700}
+
+  /* ---------- cover ---------- */
+  .cover{justify-content:flex-end;background:var(--paper)}
+  .cover .top{position:absolute;top:30px;left:84px;right:84px;display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--grey)}
+  .cover .top i{display:inline-block;width:11px;height:11px;background:var(--red);margin-right:9px;vertical-align:-1px}
+  .cover h1{font-family:var(--display);font-weight:900;font-size:118px;line-height:.92;letter-spacing:-.02em}
+  .cover h1 .yr{font-family:var(--num);font-weight:800}
+  .cover .sub{font-size:22px;color:var(--ink-2);margin-top:26px;max-width:32em;line-height:1.6}
+  .cover .meta{display:flex;gap:0;margin-top:42px;border-top:2px solid var(--ink);padding-top:18px}
+  .cover .meta div{padding-right:54px}
+  .cover .meta .l{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey)}
+  .cover .meta .d{font-family:var(--display);font-weight:700;font-size:21px;margin-top:6px}
+
+  /* ---------- section / one-sentence statement ---------- */
+  .say{justify-content:center}
+  .say h2{font-family:var(--display);font-weight:800;font-size:72px;line-height:1.08;letter-spacing:-.015em;max-width:18em;text-wrap:balance}
+  .say .small{font-size:21px;color:var(--ink-2);margin-top:28px;max-width:34em;line-height:1.62}
+
+  /* ---------- HERO number ---------- */
+  .hero{justify-content:center;background:var(--dark)}
+  .hero *{color:var(--paper)}
+  .hero .eyebrow{color:var(--red)}
+  .hero .lbl{font-family:var(--display);font-weight:700;font-size:26px;color:var(--grey-2);margin-bottom:6px}
+  .hero .num{font-family:var(--num);font-weight:900;font-size:288px;line-height:.82;letter-spacing:-.04em}
+  .hero .num .u{font-size:96px;font-weight:700;color:var(--red);letter-spacing:-.01em;margin-left:8px}
+  .hero .note{font-size:21px;color:var(--grey-2);margin-top:30px;max-width:30em;line-height:1.62}
+  .hero .note b{color:var(--paper)}
+
+  /* ---------- 做成的事: big metric + caption ---------- */
+  .win{justify-content:flex-end}
+  .win .tag{font-family:var(--mono);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--grey);margin-bottom:auto;margin-top:6px}
+  .win .grid{display:grid;grid-template-columns:1fr 0.92fr;gap:60px;align-items:flex-end}
+  .win .big{font-family:var(--num);font-weight:900;font-size:184px;line-height:.84;letter-spacing:-.04em}
+  .win .big .u{font-size:62px;font-weight:700;color:var(--red);letter-spacing:0}
+  .win .delta{font-family:var(--mono);font-size:16px;color:var(--red);margin-top:14px;letter-spacing:.04em}
+  .win h3{font-family:var(--display);font-weight:800;font-size:38px;line-height:1.12;letter-spacing:-.01em}
+  .win p{font-size:19px;color:var(--ink-2);line-height:1.64;margin-top:16px}
+  .win .barline{position:absolute;left:84px;bottom:54px;width:calc(100% - 168px);height:2px;background:var(--line)}
+
+  /* ---------- 坑 (honest) ---------- */
+  .pit{justify-content:center;background:var(--paper-2)}
+  .pit .eyebrow{color:var(--ink)}
+  .pit .eyebrow .rule{background:var(--ink)}
+  .pit h2{font-family:var(--display);font-weight:800;font-size:60px;line-height:1.08;letter-spacing:-.015em;margin-top:24px;max-width:19em}
+  .pit .cols{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:40px}
+  .pit .c .n{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);padding-bottom:10px;border-bottom:1px solid var(--line-2)}
+  .pit .c h4{font-family:var(--display);font-weight:700;font-size:24px;margin:16px 0 10px;line-height:1.2}
+  .pit .c p{font-size:18px;color:var(--ink-2);line-height:1.6}
+
+  /* ---------- fix ---------- */
+  .fix .eyebrow{color:var(--red)}
+  .fix h2{font-family:var(--display);font-weight:800;font-size:54px;line-height:1.1;letter-spacing:-.015em;margin:22px 0 34px;max-width:20em}
+  .fix .rows{border-top:1px solid var(--line-2)}
+  .fix .r{display:grid;grid-template-columns:54px 1fr 290px;gap:28px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line-2)}
+  .fix .r .i{font-family:var(--mono);color:var(--red);font-size:15px;font-weight:700}
+  .fix .r .k{font-family:var(--display);font-weight:700;font-size:25px}
+  .fix .r .v{font-size:17px;color:var(--ink-2);line-height:1.5}
+  .fix .r .v b{color:var(--red);font-weight:800}
+
+  /* ---------- chart slide ---------- */
+  .chart .head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
+  .chart h2{font-family:var(--display);font-weight:800;font-size:42px;line-height:1.05;letter-spacing:-.01em;margin-top:18px}
+  .chart .legend{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--grey);text-align:right;line-height:1.9}
+  .chart .legend i{display:inline-block;width:11px;height:11px;vertical-align:0;margin-right:7px}
+  .chart .legend .lr{background:var(--red)}
+  .chart .legend .lg{background:var(--line-2)}
+  .chart .plot{flex:1;display:flex;align-items:center;justify-content:center;margin-top:6px}
+  .chart svg{width:100%;height:430px;display:block}
+  .chart .foot{font-size:16px;color:var(--ink-2);margin-top:2px;line-height:1.5}
+  .chart .foot b{color:var(--red)}
+  text{font-family:var(--mono)}
+
+  /* ---------- data panorama (small multiples) ---------- */
+  .pano .eyebrow{margin-bottom:auto}
+  .pano h2{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:-.01em;margin:18px 0 30px}
+  .pano .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line-2)}
+  .pano .cell{padding:26px 26px 30px 0;border-bottom:1px solid var(--line-2)}
+  .pano .cell:nth-child(n+5){border-bottom:none}
+  .pano .cell .l{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey)}
+  .pano .cell .d{font-family:var(--num);font-weight:900;font-size:62px;line-height:1;letter-spacing:-.03em;margin-top:14px}
+  .pano .cell .d .u{font-size:24px;font-weight:700}
+  .pano .cell.hot .d{color:var(--red)}
+  .pano .cell .x{font-family:var(--mono);font-size:12px;color:var(--grey);margin-top:9px;letter-spacing:.02em}
+
+  /* ---------- closing bet ---------- */
+  .bet{justify-content:center;background:var(--dark)}
+  .bet *{color:var(--paper)}
+  .bet .eyebrow{color:var(--red)}
+  .bet .lbl{font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--grey-2);margin-bottom:14px}
+  .bet h2{font-family:var(--display);font-weight:900;font-size:96px;line-height:1.0;letter-spacing:-.025em}
+  .bet h2 .red{color:var(--red)}
+  .bet .small{font-size:21px;color:var(--grey-2);margin-top:30px;max-width:30em;line-height:1.64}
+  .bet .small b{color:var(--paper)}
+  .bet .sign{position:absolute;bottom:54px;left:84px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey)}
+  .bet .sign b{color:var(--paper)}
+
+  /* ---------- HUD / chrome ---------- */
+  .hud{position:absolute;z-index:50;bottom:22px;right:30px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--grey)}
+  .hud b{color:var(--ink)}
+  .bar{position:absolute;z-index:50;bottom:0;left:0;height:3px;background:var(--red);width:0;transition:width .32s ease}
+  .brandmark{position:absolute;z-index:50;bottom:20px;left:30px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase}
+  .hint{position:absolute;z-index:50;bottom:20px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--grey);opacity:.85}
+  .hint.gone{opacity:0;transition:opacity .6s}
+  /* chrome inverts on dark slides */
+  .stage.dark .hud{color:var(--grey-2)} .stage.dark .hud b{color:var(--paper)}
+  .stage.dark .brandmark,.stage.dark .hint{color:var(--grey-2)}
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{transition:opacity .01s}.bar{transition:none}
+  }
+
+  /* print -> one slide per page */
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    html,body{overflow:visible;background:#fff}
+    .stage{position:static;transform:none!important;width:1280px;height:auto;background:transparent}
+    .slide{position:relative;inset:auto;opacity:1!important;visibility:visible!important;transform:none!important;
+      width:1280px;height:720px;page-break-after:always;break-after:page;background:var(--paper);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .slide.hero,.slide.bet{background:var(--dark)}
+    .slide.pit{background:var(--paper-2)}
+    .hud,.bar,.brandmark,.hint{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 01 COVER -->
+  <section class="slide cover is-active">
+    <div class="top"><span><i></i>回声 AI 小队</span><span>ANNUAL REVIEW / 内部复盘</span></div>
+    <h1>这一年，<br>我们把活<br>干<span class="red">成</span>了。</h1>
+    <div class="sub">不讲故事，只算账。一年做了什么、错在哪、明年押什么，全在这十三页里。</div>
+    <div class="meta">
+      <div><div class="l">周期</div><div class="d">2026 全年</div></div>
+      <div><div class="l">团队</div><div class="d">6 个人</div></div>
+      <div><div class="l">主线产品</div><div class="d">回声 · 客服 Copilot</div></div>
+    </div>
+  </section>
+
+  <!-- 02 ONE-SENTENCE framing -->
+  <section class="slide say">
+    <div class="eyebrow"><span class="rule"></span>开场</div>
+    <h2 style="margin-top:24px">六个人，<br>一年里只干了一件事，<br>把它<span class="red">干透</span>。</h2>
+    <div class="small">没扩张产品线，没追每一个风口。一年下来，回声从一个 demo，变成了 38 个客户每天离不开的工具。</div>
+  </section>
+
+  <!-- 03 HERO number -->
+  <section class="slide hero" data-dark>
+    <div class="eyebrow"><span class="rule"></span>一年最关键的一个数字</div>
+    <div class="spacer" style="flex:0 0 26px"></div>
+    <div class="lbl">年度经常性收入 ARR</div>
+    <div class="num">412<span class="u">万</span></div>
+    <div class="note">从年初的 <b>76 万</b>到年末 <b>412 万</b>。<b>5.4 倍</b>。这一个数字，撑起了下面所有的复盘。</div>
+  </section>
+
+  <!-- 04 transition -->
+  <section class="slide say">
+    <div class="eyebrow"><span class="rule"></span>这一年做成的三件大事</div>
+    <h2 style="margin-top:24px">收入翻了五倍，<br>靠的不是运气，<br>是<span class="red">三件具体的事</span>。</h2>
+    <div class="small">一件把客户留住了，一件把成本砍下来了，一件把交付变快了。逐个上数字。</div>
+  </section>
+
+  <!-- 05 win 01 -->
+  <section class="slide win">
+    <div class="tag">做成的事 01 / 留存</div>
+    <div class="grid">
+      <div>
+        <div class="big">91<span class="u">%</span></div>
+        <div class="delta">▲ 较去年 67%，提升 24 个百分点</div>
+      </div>
+      <div>
+        <h3>客户用上了，就不走了。</h3>
+        <p>年度净留存做到 91%。把产品塞进客户每天的工单流里，不是让他们偶尔打开看一眼。粘住的不是功能，是工作习惯。</p>
+      </div>
+    </div>
+    <div class="barline"></div>
+  </section>
+
+  <!-- 06 win 02 -->
+  <section class="slide win">
+    <div class="tag">做成的事 02 / 成本</div>
+    <div class="grid">
+      <div>
+        <div class="big">−68<span class="u">%</span></div>
+        <div class="delta">▼ 单次对话推理成本，从 0.34 元降到 0.11 元</div>
+      </div>
+      <div>
+        <h3>同样的活，花原来三分之一的钱。</h3>
+        <p>把大模型从主力换成了路由：简单工单走小模型，难的才上大的。一年省下来的算力钱，够再养两个人。</p>
+      </div>
+    </div>
+    <div class="barline"></div>
+  </section>
+
+  <!-- 07 win 03 -->
+  <section class="slide win">
+    <div class="tag">做成的事 03 / 交付</div>
+    <div class="grid">
+      <div>
+        <div class="big">5<span class="u">天</span></div>
+        <div class="delta">▼ 新客户上线周期，从 31 天压到 5 天</div>
+      </div>
+      <div>
+        <h3>签完到上线，一周搞定。</h3>
+        <p>把每次重复的接入做成了模板和脚本。原来一个客户折腾一个月，现在一个人五天跑通。交付快了，签单也跟着快。</p>
+      </div>
+    </div>
+    <div class="barline"></div>
+  </section>
+
+  <!-- 08 PIT honest -->
+  <section class="slide pit">
+    <div class="eyebrow"><span class="rule"></span>坦诚一点，也踩了坑</div>
+    <h2>有两个季度，<br>我们把劲使错了地方。</h2>
+    <div class="cols">
+      <div class="c">
+        <div class="n">坑 01 / Q2 浪费了 11 周</div>
+        <h4>追了一个没人要的功能</h4>
+        <p>花了大半个季度做语音质检，上线后月活不到 30 人。我们想当然觉得客户会要，没先去问。这 11 周，是真金白银的学费。</p>
+      </div>
+      <div class="c">
+        <div class="n">坑 02 / Q3 差点丢了大客户</div>
+        <h4>报警系统晚了 4 小时</h4>
+        <p>一次模型超时没有及时告警，一个大客户的工单堆了一下午。事后补了监控，但信任这东西，修起来比代码慢得多。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 FIX -->
+  <section class="slide fix">
+    <div class="eyebrow"><span class="rule"></span>坑踩了，怎么改的</div>
+    <h2>两个坑，换来三条<br>写进流程的规矩。</h2>
+    <div class="rows">
+      <div class="r"><span class="i">01</span><span class="k">先问再做</span><span class="v">新功能动工前，至少找 <b>5 个</b>真实客户验证需求</span></div>
+      <div class="r"><span class="i">02</span><span class="k">告警分级</span><span class="v">核心链路告警 <b>1 分钟</b>触达，超时自动降级</span></div>
+      <div class="r"><span class="i">03</span><span class="k">复盘上墙</span><span class="v">每个事故 <b>48 小时</b>内复盘，根因写进 checklist</span></div>
+    </div>
+  </section>
+
+  <!-- 10 CHART (pure SVG) -->
+  <section class="slide chart">
+    <div class="rib"><span>FIG. 01 / 月度 ARR 走势</span><span>单位 万元 · <b>2026</b></span></div>
+    <div class="head">
+      <h2>钱是怎么<br>一个月一个月涨上来的</h2>
+      <div class="legend"><span class="lr2"><i class="lr"></i>当月 ARR</span><br><span><i class="lg"></i>同期成本线</span></div>
+    </div>
+    <div class="plot">
+      <svg viewBox="0 0 1112 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="月度 ARR 柱状图">
+        <!-- gridlines + y labels -->
+        <g stroke="#d9d7ce" stroke-width="1">
+          <line x1="92" y1="40"  x2="1092" y2="40"/>
+          <line x1="92" y1="125" x2="1092" y2="125"/>
+          <line x1="92" y1="210" x2="1092" y2="210"/>
+          <line x1="92" y1="295" x2="1092" y2="295"/>
+        </g>
+        <line x1="92" y1="380" x2="1092" y2="380" stroke="#14140f" stroke-width="2"/>
+        <g fill="#8a887e" font-size="13" text-anchor="end">
+          <text x="78" y="45">450</text>
+          <text x="78" y="130">340</text>
+          <text x="78" y="215">225</text>
+          <text x="78" y="300">110</text>
+          <text x="78" y="385">0</text>
+        </g>
+        <!-- bars: 12 months. baseline y=380, top=40 => height span 340 maps 0..450 -->
+        <!-- value->y: y = 380 - (v/450)*340 -->
+        <g>
+          <!-- Jan 76 -->
+          <rect x="100"  y="322.6" width="56" height="57.4"  fill="#c4c2b8"/>
+          <!-- Feb 88 -->
+          <rect x="182"  y="313.5" width="56" height="66.5"  fill="#c4c2b8"/>
+          <!-- Mar 119 -->
+          <rect x="264"  y="290.1" width="56" height="89.9"  fill="#c4c2b8"/>
+          <!-- Apr 142 -->
+          <rect x="346"  y="272.7" width="56" height="107.3" fill="#c4c2b8"/>
+          <!-- May 168 -->
+          <rect x="428"  y="253.1" width="56" height="126.9" fill="#c4c2b8"/>
+          <!-- Jun 197 -->
+          <rect x="510"  y="231.2" width="56" height="148.8" fill="#c4c2b8"/>
+          <!-- Jul 224 -->
+          <rect x="592"  y="210.8" width="56" height="169.2" fill="#c4c2b8"/>
+          <!-- Aug 258 -->
+          <rect x="674"  y="185.1" width="56" height="194.9" fill="#c4c2b8"/>
+          <!-- Sep 291 -->
+          <rect x="756"  y="160.2" width="56" height="219.8" fill="#c4c2b8"/>
+          <!-- Oct 330 -->
+          <rect x="838"  y="130.7" width="56" height="249.3" fill="#c4c2b8"/>
+          <!-- Nov 368 -->
+          <rect x="920"  y="101.9" width="56" height="278.1" fill="#c4c2b8"/>
+          <!-- Dec 412 highlighted -->
+          <rect x="1002" y="68.7"  width="56" height="311.3" fill="#e8482b"/>
+          <text x="1030" y="56" fill="#e8482b" font-size="20" font-weight="700" text-anchor="middle">412</text>
+        </g>
+        <!-- cost line (grey), value/450 mapped too; cost: 12,14,17,19,21,23,25,27,28,30,31,33 (万) -->
+        <polyline fill="none" stroke="#8a887e" stroke-width="2.5" stroke-dasharray="2 5" stroke-linecap="round"
+          points="128,370.9 210,369.4 292,367.2 374,365.6 456,364.1 538,362.6 620,361.1 702,359.6 784,358.8 866,357.3 948,356.6 1030,355.1"/>
+        <!-- x labels -->
+        <g fill="#8a887e" font-size="13" text-anchor="middle">
+          <text x="128" y="402">1月</text><text x="210" y="402">2月</text><text x="292" y="402">3月</text>
+          <text x="374" y="402">4月</text><text x="456" y="402">5月</text><text x="538" y="402">6月</text>
+          <text x="620" y="402">7月</text><text x="702" y="402">8月</text><text x="784" y="402">9月</text>
+          <text x="866" y="402">10月</text><text x="948" y="402">11月</text><text x="1030" y="402">12月</text>
+        </g>
+      </svg>
+    </div>
+    <div class="foot">十二个月，没有一个月掉头。<b>12 月单月 412 万</b>，是 1 月的五倍多，而成本线几乎是平的。</div>
+  </section>
+
+  <!-- 11 PANORAMA -->
+  <section class="slide pano">
+    <div class="eyebrow"><span class="rule"></span>一年的数据全景</div>
+    <h2>一页看完这一年。</h2>
+    <div class="grid">
+      <div class="cell hot"><div class="l">年度 ARR</div><div class="d">412<span class="u">万</span></div><div class="x">▲ 5.4×</div></div>
+      <div class="cell"><div class="l">付费客户</div><div class="d">38<span class="u">家</span></div><div class="x">▲ +29</div></div>
+      <div class="cell"><div class="l">净留存</div><div class="d">91<span class="u">%</span></div><div class="x">▲ +24pt</div></div>
+      <div class="cell"><div class="l">毛利率</div><div class="d">74<span class="u">%</span></div><div class="x">▲ +18pt</div></div>
+      <div class="cell"><div class="l">日处理工单</div><div class="d">21<span class="u">万</span></div><div class="x">▲ 8.7×</div></div>
+      <div class="cell"><div class="l">单次推理成本</div><div class="d">0.11<span class="u">元</span></div><div class="x">▼ −68%</div></div>
+      <div class="cell"><div class="l">上线周期</div><div class="d">5<span class="u">天</span></div><div class="x">▼ −26天</div></div>
+      <div class="cell"><div class="l">团队规模</div><div class="d">6<span class="u">人</span></div><div class="x">＝ 没扩</div></div>
+    </div>
+  </section>
+
+  <!-- 12 one-line summary -->
+  <section class="slide say">
+    <div class="eyebrow"><span class="rule"></span>一句话总结这一年</div>
+    <h2 style="margin-top:24px">六个人，没扩编，<br>把收入做到了<span class="red">五倍</span>。</h2>
+    <div class="small">不是因为运气好，是因为只做了一件事，并且把它做透了。明年也只打算这么干。</div>
+  </section>
+
+  <!-- 13 CLOSING bet -->
+  <section class="slide bet" data-dark>
+    <div class="eyebrow"><span class="rule"></span>明年押什么</div>
+    <div class="lbl">2027 · 唯一的重注</div>
+    <h2>把回声，<br>做成客服团队的<br><span class="red">自动驾驶</span>。</h2>
+    <div class="small">今年它是副驾，帮人干活。明年只赌一件事，<b>让 70% 的工单不用人碰</b>。其他想法全部砍掉，押这一个。</div>
+    <div class="sign">回声 AI 小队 · 2026 年度复盘 · 算账不讲故事</div>
+  </section>
+
+</div>
+
+<div class="bar" id="bar"></div>
+<div class="brandmark">回声 AI 小队 · 2026 ANNUAL REVIEW</div>
+<div class="hud"><b id="pn">01</b> / <span id="pa">13</span></div>
+<div class="hint" id="hint">← → 或 空格 翻页 · Cmd+P 导出 PDF</div>
+
+<script>
+  const stage=document.getElementById('stage');
+  const slides=[...document.querySelectorAll('.slide')];
+  const pn=document.getElementById('pn'),pa=document.getElementById('pa'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+  let i=0;
+  pa.textContent=String(slides.length).padStart(2,'0');
+
+  function fit(){
+    const s=Math.min(innerWidth/1280, innerHeight/720);
+    stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize',fit); fit();
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{
+      s.classList.toggle('is-active',k===i);
+      s.classList.toggle('is-prev',k<i);
+    });
+    // invert chrome on dark slides
+    stage.classList.toggle('dark', slides[i].hasAttribute('data-dark'));
+    pn.textContent=String(i+1).padStart(2,'0');
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  show(0);
+
+  function next(){show(i+1)} function prev(){show(i-1)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();next();dismissHint()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();dismissHint()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  });
+  // click halves to navigate (ignore link clicks)
+  addEventListener('click',e=>{
+    if(e.target.closest('a'))return;
+    (e.clientX>innerWidth/2?next():prev());dismissHint();
+  });
+  let hintTimer=setTimeout(dismissHint,6000);
+  function dismissHint(){hint.classList.add('gone');clearTimeout(hintTimer)}
+</script>
+</body>
+</html>

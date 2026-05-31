@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>回声 ECHO · AI 会议副驾 发布会</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --space:#07070d; --space-2:#0c0c16; --panel:#10101e;
+    --text:#e8e8f0; --dim:#6a6a82; --steel:#42425a; --line:#1e1e30;
+    --cyan:#00e5ff; --magenta:#ff2e97;
+    --display:"Space Grotesk","Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --body:"Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden}
+  body{font-family:var(--body);color:var(--text)}
+
+  /* ---------- 16:9 stage, scaled to viewport ---------- */
+  .stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%);transform-origin:center center;background:var(--space);overflow:hidden}
+  .slide{position:absolute;inset:0;padding:72px 92px;display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;transform:translateX(36px);
+    transition:opacity .34s ease,transform .34s ease,visibility 0s linear .34s}
+  .slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .34s ease,transform .34s ease}
+  .slide.is-prev{transform:translateX(-36px)}
+
+  /* ambient grid + scanline (static texture, no animated blur) */
+  .stage::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(rgba(0,229,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.04) 1px,transparent 1px);
+    background-size:64px 64px}
+  .stage::after{content:"";position:absolute;inset:0;z-index:40;pointer-events:none;opacity:.5;
+    background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px,rgba(0,0,0,0) 4px)}
+  .slide>*{position:relative;z-index:1}
+
+  /* perspective horizon line on cover-ish slides */
+  .grid-floor{position:absolute;left:0;right:0;bottom:0;height:280px;z-index:0;pointer-events:none;opacity:.22;
+    background-image:linear-gradient(rgba(0,229,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.5) 1px,transparent 1px);
+    background-size:80px 40px;transform:perspective(360px) rotateX(72deg);transform-origin:bottom center}
+
+  .kick{font-family:var(--mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:14px}
+  .kick .rule{width:46px;height:2px;background:var(--cyan)}
+  .spacer{flex:1}
+  .cy{color:var(--cyan)}
+  .mg{color:var(--magenta)}
+  .glow-cy{color:var(--cyan);text-shadow:0 0 24px rgba(0,229,255,.55),0 0 60px rgba(0,229,255,.25)}
+  .glow-mg{color:var(--magenta);text-shadow:0 0 24px rgba(255,46,151,.55),0 0 60px rgba(255,46,151,.25)}
+  .eyebrow{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);margin-bottom:26px}
+
+  /* cover */
+  .cover{justify-content:center}
+  .logo-row{display:flex;align-items:center;gap:11px;font-family:var(--mono);font-weight:700;letter-spacing:.06em;font-size:17px;position:absolute;top:64px;left:92px;color:var(--text)}
+  .logo-row i{width:13px;height:13px;border-radius:50%;background:var(--cyan);box-shadow:0 0 16px var(--cyan)}
+  .cover h1{font-family:var(--display);font-weight:700;font-size:188px;line-height:.84;letter-spacing:-.02em;margin:14px 0 0}
+  .cover .zh{font-family:var(--body);font-weight:900;font-size:46px;letter-spacing:.04em;margin-top:26px;color:var(--text)}
+  .cover .tag{font-size:21px;color:var(--dim);margin-top:24px;max-width:30em;line-height:1.65}
+  .cover .en{font-family:var(--mono);font-size:13px;letter-spacing:.16em;color:var(--steel);margin-top:42px;text-transform:uppercase}
+
+  /* generic headline / statement */
+  .statement{justify-content:center}
+  .statement p{font-family:var(--body);font-weight:900;font-size:108px;line-height:1.0;letter-spacing:.01em}
+  .statement .small{font-size:21px;color:var(--dim);margin-top:34px;max-width:34em;line-height:1.65}
+
+  h2{font-family:var(--body);font-weight:900;font-size:80px;line-height:1.04;letter-spacing:.005em}
+  .lead{font-size:23px;color:#bcbcd0;line-height:1.65;max-width:30em;margin-top:30px}
+  .lead b{color:var(--text)}
+
+  /* big number visual hammer */
+  .hammer{justify-content:center;align-items:flex-start}
+  .hammer .num{font-family:var(--display);font-weight:700;font-size:300px;line-height:.8;letter-spacing:-.03em}
+  .hammer .cap{font-family:var(--body);font-weight:900;font-size:38px;margin-top:10px}
+  .hammer .note{font-size:19px;color:var(--dim);margin-top:18px;max-width:32em;line-height:1.62}
+
+  /* feature slide */
+  .feat{display:grid;grid-template-columns:288px 1fr;gap:60px;align-items:center;flex:1}
+  .feat .no{font-family:var(--display);font-weight:700;font-size:236px;line-height:.78;color:transparent;-webkit-text-stroke:2px var(--steel)}
+  .feat .body .en{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:15px;color:var(--cyan)}
+  .feat .body h3{font-family:var(--body);font-weight:900;font-size:62px;margin:12px 0 20px;line-height:1.02}
+  .feat .body p{font-size:23px;color:#bcbcd0;line-height:1.6;max-width:23em}
+  .feat .body p .hot{color:var(--magenta);font-weight:700}
+
+  /* killer feature climax: flow chips */
+  .climax{justify-content:center}
+  .climax .lab{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--magenta);margin-bottom:24px}
+  .climax h2{font-size:92px;line-height:1.02;max-width:16em}
+  .climax .flow{display:flex;align-items:center;gap:18px;margin-top:46px;flex-wrap:wrap}
+  .climax .chip{font-family:var(--mono);font-size:17px;letter-spacing:.04em;padding:14px 22px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+  .climax .chip.on{border-color:var(--cyan);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(0,229,255,.35)}
+  .climax .arrow{font-family:var(--mono);color:var(--steel);font-size:20px}
+
+  /* price slide */
+  .price{justify-content:center}
+  .price .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:8px}
+  .price .card{border:1px solid var(--line);background:var(--panel);padding:34px 30px;display:flex;flex-direction:column}
+  .price .card.hero{border-color:var(--magenta);box-shadow:inset 0 0 0 1px rgba(255,46,151,.3)}
+  .price .card .pn{font-family:var(--mono);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .price .card .amt{font-family:var(--display);font-weight:700;font-size:72px;line-height:1;margin:18px 0 6px}
+  .price .card .amt small{font-size:24px;color:var(--dim);font-weight:500}
+  .price .card .desc{font-size:18px;color:#a8a8c0;line-height:1.5;margin-top:auto;padding-top:18px}
+  .price .card.hero .amt{color:var(--magenta)}
+
+  /* close */
+  .close{justify-content:center}
+  .close h2{font-family:var(--display);font-weight:700;font-size:128px;line-height:.94;letter-spacing:-.01em}
+  .close .row{display:flex;gap:44px;align-items:flex-end;margin-top:46px;flex-wrap:wrap}
+  .close .cta{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:16px;background:var(--cyan);color:#04141a;padding:18px 26px;text-decoration:none}
+  .close .repo{font-family:var(--mono);font-size:15px;color:var(--dim);line-height:1.9}
+  .close .repo b{color:var(--text)}
+
+  /* HUD */
+  .hud{position:absolute;z-index:50;bottom:26px;right:36px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--steel)}
+  .hud b{color:var(--text)}
+  .bar{position:absolute;z-index:50;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--magenta));width:0;transition:width .34s ease}
+  .brandmark{position:absolute;z-index:50;bottom:24px;left:36px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--steel);text-transform:uppercase}
+  .hint{position:absolute;z-index:50;bottom:24px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--steel);opacity:.7}
+  .hint.gone{opacity:0;transition:opacity .6s}
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{transition:opacity .01s}.bar{transition:none}
+  }
+
+  /* print -> one slide per page */
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    html,body{overflow:visible;background:#fff}
+    .stage{position:static;transform:none;width:1280px;height:auto;background:transparent}
+    .slide{position:relative;inset:auto;opacity:1!important;visibility:visible!important;transform:none!important;
+      width:1280px;height:720px;page-break-after:always;break-after:page;background:var(--space);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .stage::after,.stage::before,.hud,.bar,.brandmark,.hint{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 01 COVER -->
+  <section class="slide cover is-active">
+    <div class="grid-floor"></div>
+    <div class="logo-row"><i></i>ECHO · 发布会</div>
+    <div class="kick"><span class="rule"></span>AI 会议副驾</div>
+    <h1>ECHO</h1>
+    <div class="zh">回声</div>
+    <div class="tag">它进你的会，替你记笔记，会一散，活已经派下去了。</div>
+    <div class="en">Joins your calls. Takes the notes. Ships the work.</div>
+  </section>
+
+  <!-- 02 OLD WORLD PAIN -->
+  <section class="slide statement">
+    <div class="eyebrow">01 / 旧世界</div>
+    <p>会开完了，<br>没人记得<span class="glow-mg">谁干啥</span>。</p>
+    <div class="small">一边听一边记，记了一半就跟不上。会一散，纪要没人写，行动项全靠脑子，三天后全忘光。</div>
+  </section>
+
+  <!-- 03 PAIN NUMBER -->
+  <section class="slide hammer">
+    <div class="num glow-mg">23</div>
+    <div class="cap">一个上班族，每周开会的<span class="mg">小时数</span></div>
+    <div class="note">小半周的时间坐在会里。这里面真正有结论、有下文的，能有几成。剩下的，蒸发了。</div>
+  </section>
+
+  <!-- 04 TURN / PRODUCT ENTERS -->
+  <section class="slide statement">
+    <div class="grid-floor"></div>
+    <div class="eyebrow">02 / 换个开法</div>
+    <p>让<span class="glow-cy">回声</span><br>替你坐在会里。</p>
+    <div class="small">它自己进会，全程在听。你专心聊，记录交给它。聊完，纪要、决定、谁负责什么，已经摆在你面前。</div>
+  </section>
+
+  <!-- 05 FEATURE 01 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">01</div>
+      <div class="body">
+        <div class="en">Joins &amp; Listens</div>
+        <h3>它自己进会</h3>
+        <p>腾讯会议、Zoom、飞书、线下手机摆桌上，它都能进。全程在听，<span class="hot">逐字成稿</span>，谁说的哪句话都对得上人。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 FEATURE 02 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">02</div>
+      <div class="body">
+        <div class="en">Action Items, Auto</div>
+        <h3>它替你派活</h3>
+        <p>谁负责什么、什么时候交，它自己拎出来，列成清单。会一散，<span class="hot">任务直接进群进待办</span>，不用你回头整理。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 FEATURE 03 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">03</div>
+      <div class="body">
+        <div class="en">Ask Anything</div>
+        <h3>那句话它替你找</h3>
+        <p>三周前那个会，客户到底答应了啥。直接问它，它<span class="hot">翻遍所有会议</span>把原话定位给你，连那一刻的上下文一起。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 KILLER FEATURE CLIMAX -->
+  <section class="slide climax">
+    <div class="lab">// 杀手锏</div>
+    <h2>会还没散，<br><span class="glow-cy">活已经派下去了</span>。</h2>
+    <div class="flow">
+      <span class="chip">你在聊</span>
+      <span class="arrow">→</span>
+      <span class="chip">它在拆</span>
+      <span class="arrow">→</span>
+      <span class="chip on">任务进群</span>
+      <span class="arrow">→</span>
+      <span class="chip on">负责人收到</span>
+    </div>
+  </section>
+
+  <!-- 09 GIANT KEY METRIC -->
+  <section class="slide hammer">
+    <div class="num glow-cy">6</div>
+    <div class="cap">每周帮你<span class="cy">省下的小时数</span></div>
+    <div class="note">不用边听边记，不用会后整理，不用追着人问进度。这六个小时，还给你做真正要紧的事。</div>
+  </section>
+
+  <!-- 10 SLOGAN FILLS SCREEN -->
+  <section class="slide statement">
+    <p style="font-size:124px;line-height:.98">你负责开会，<br><span class="glow-mg">剩下的</span>交给回声。</p>
+  </section>
+
+  <!-- 11 PRICE / AVAILABILITY -->
+  <section class="slide price">
+    <div class="eyebrow">03 / 怎么拿到</div>
+    <h2 style="font-size:60px;margin-bottom:30px">今天开放，先到先用。</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="pn">个人版</div>
+        <div class="amt">¥0</div>
+        <div class="desc">每月 10 场会免费，进会、记录、派活全都有。</div>
+      </div>
+      <div class="card hero">
+        <div class="pn">团队版 · 最划算</div>
+        <div class="amt">¥39<small> /人/月</small></div>
+        <div class="desc">不限会议数，跨会检索，任务直推群和待办。</div>
+      </div>
+      <div class="card">
+        <div class="pn">企业版</div>
+        <div class="amt">私有<small> 部署</small></div>
+        <div class="desc">数据落你自己的服务器，独立对接，专人接入。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 CTA CLOSE -->
+  <section class="slide close">
+    <div class="grid-floor"></div>
+    <div class="eyebrow">// 下一场会，换个开法</div>
+    <h2>让回声<br>进你的<span class="glow-cy">会</span>。</h2>
+    <div class="row">
+      <a class="cta" href="https://echo.ai" target="_blank" rel="noopener">echo.ai · 立即开通 →</a>
+      <div class="repo"><b>回声 ECHO</b><br>AI 会议副驾 · 黑哥Ai实验室出品</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="bar" id="bar"></div>
+<div class="brandmark">回声 ECHO · AI 会议副驾</div>
+<div class="hud"><b id="pn">01</b> / <span id="pa">12</span></div>
+<div class="hint" id="hint">← → 或 空格 翻页 · Cmd+P 导出 PDF</div>
+
+<script>
+  const stage=document.getElementById('stage');
+  const slides=[...document.querySelectorAll('.slide')];
+  const pn=document.getElementById('pn'),pa=document.getElementById('pa'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+  let i=0;
+  pa.textContent=String(slides.length).padStart(2,'0');
+
+  function fit(){
+    const s=Math.min(innerWidth/1280, innerHeight/720);
+    stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize',fit); fit();
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{
+      s.classList.toggle('is-active',k===i);
+      s.classList.toggle('is-prev',k<i);
+    });
+    pn.textContent=String(i+1).padStart(2,'0');
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  show(0);
+
+  function next(){show(i+1)} function prev(){show(i-1)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();next();dismissHint()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();dismissHint()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  });
+  // click halves to navigate (ignore link clicks)
+  addEventListener('click',e=>{
+    if(e.target.closest('a'))return;
+    (e.clientX>innerWidth/2?next():prev());dismissHint();
+  });
+  let hintTimer=setTimeout(dismissHint,6000);
+  function dismissHint(){hint.classList.add('gone');clearTimeout(hintTimer)}
+</script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HeiGe-PPT · 演讲锻造系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@600;800;900&family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0b0b0d; --ink-2:#16161b; --ink-3:#1f1f26;
+    --paper:#f4efe6; --dim:#9a948a; --steel:#52525c; --line:#2a2a31;
+    --ember:#ff4d12; --ember-2:#ff8a00; --spark:#ffd23f;
+    --display:"Archivo","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    --slab:"Anton","Noto Sans SC","PingFang SC","Microsoft YaHei",Impact,sans-serif;
+    --body:"Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --mono:"Space Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden}
+  body{font-family:var(--body);color:var(--paper)}
+
+  /* ---------- 16:9 stage, scaled to viewport ---------- */
+  .stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%);transform-origin:center center;background:var(--ink);overflow:hidden}
+  .slide{position:absolute;inset:0;padding:72px 88px;display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;transform:translateX(36px);
+    transition:opacity .34s ease,transform .34s ease,visibility 0s linear .34s}
+  .slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .34s ease,transform .34s ease}
+  .slide.is-prev{transform:translateX(-36px)}
+
+  /* grain */
+  .stage::after{content:"";position:absolute;inset:0;z-index:40;pointer-events:none;opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .kick{font-family:var(--mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);display:flex;align-items:center;gap:14px}
+  .kick .rule{width:46px;height:2px;background:var(--ember)}
+  .spacer{flex:1}
+  .ember{color:var(--ember)}
+  .molten{background:linear-gradient(95deg,var(--ember),var(--ember-2) 55%,var(--spark));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+
+  /* cover */
+  .cover{justify-content:center}
+  .logo-row{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;font-size:18px;position:absolute;top:64px;left:88px}
+  .logo-row i{width:15px;height:15px;background:var(--ember);box-shadow:0 0 16px var(--ember)}
+  .cover h1{font-family:var(--slab);font-weight:400;font-size:172px;line-height:.86;letter-spacing:.01em;margin:18px 0 0}
+  .cover .sub{font-family:var(--display);font-weight:800;font-size:30px;margin-top:30px;color:var(--paper)}
+  .cover .tag{font-size:19px;color:var(--dim);margin-top:20px;max-width:30em;line-height:1.6}
+  .cover .en{font-family:var(--mono);font-size:13px;letter-spacing:.16em;color:var(--steel);margin-top:40px;text-transform:uppercase}
+
+  /* generic headline slide */
+  .eyebrow{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--ember);margin-bottom:26px}
+  h2{font-family:var(--display);font-weight:900;font-size:78px;line-height:1.04;letter-spacing:-.01em}
+  h2.big{font-size:104px;line-height:.98}
+  .lead{font-size:23px;color:#cfc9bd;line-height:1.65;max-width:30em;margin-top:30px}
+  .lead b{color:var(--paper)}
+
+  /* statement / manifesto */
+  .statement{justify-content:center}
+  .statement p{font-family:var(--slab);font-weight:400;font-size:120px;line-height:.98;letter-spacing:.01em}
+  .statement .small{font-family:var(--body);font-size:21px;color:var(--dim);margin-top:34px;max-width:34em;line-height:1.6;letter-spacing:0}
+
+  /* big number visual hammer */
+  .hammer{justify-content:center;align-items:flex-start}
+  .hammer .num{font-family:var(--slab);font-weight:400;font-size:300px;line-height:.82;letter-spacing:-.01em;color:var(--ember)}
+  .hammer .cap{font-family:var(--display);font-weight:800;font-size:36px;margin-top:8px}
+  .hammer .note{font-size:19px;color:var(--dim);margin-top:18px;max-width:32em;line-height:1.6}
+
+  /* process step */
+  .step{display:grid;grid-template-columns:300px 1fr;gap:56px;align-items:center;flex:1}
+  .step .no{font-family:var(--slab);font-weight:400;font-size:240px;line-height:.8;color:transparent;-webkit-text-stroke:2px var(--steel)}
+  .step .body .en{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:15px;color:var(--ember)}
+  .step .body h3{font-family:var(--display);font-weight:900;font-size:60px;margin:10px 0 20px;line-height:1.02}
+  .step .body p{font-size:22px;color:#c2bcb0;line-height:1.62;max-width:24em}
+  .step .body p .hot{color:var(--spark)}
+
+  /* steps overview (one-sentence backbone) */
+  .list h2{margin-bottom:36px}
+  .rows{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line)}
+  .rows .r{display:grid;grid-template-columns:64px 280px 1fr;gap:24px;align-items:baseline;padding:20px 0;border-bottom:1px solid var(--line)}
+  .rows .r .i{font-family:var(--mono);color:var(--ember);font-size:15px}
+  .rows .r .k{font-family:var(--display);font-weight:800;font-size:27px}
+  .rows .r .v{font-size:18px;color:var(--dim);line-height:1.5}
+
+  /* how to use */
+  .use .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;flex:1;align-content:center}
+  .use .card{border:1px solid var(--line);border-left:3px solid var(--ember);padding:30px 28px;display:flex;flex-direction:column}
+  .use .card .n{font-family:var(--mono);color:var(--ember);font-size:14px;letter-spacing:.1em}
+  .use .card h4{font-family:var(--display);font-weight:800;font-size:30px;margin:14px 0 12px}
+  .use .card p{font-size:18px;color:#bdb7ab;line-height:1.55}
+  .use .card code{font-family:var(--mono);font-size:14px;color:var(--spark);background:var(--ink-3);padding:2px 6px}
+
+  /* close */
+  .close{justify-content:center}
+  .close h2{font-family:var(--slab);font-weight:400;font-size:128px;line-height:.96}
+  .close .row{display:flex;gap:44px;align-items:flex-end;margin-top:46px;flex-wrap:wrap}
+  .close .cta{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:16px;background:var(--ember);color:#150700;padding:18px 26px;text-decoration:none}
+  .close .repo{font-family:var(--mono);font-size:15px;color:var(--dim);line-height:1.9}
+  .close .repo b{color:var(--paper)}
+
+  /* HUD */
+  .hud{position:absolute;z-index:50;bottom:26px;right:34px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--steel)}
+  .hud b{color:var(--paper)}
+  .bar{position:absolute;z-index:50;bottom:0;left:0;height:4px;background:var(--ember);width:0;transition:width .34s ease}
+  .brandmark{position:absolute;z-index:50;bottom:24px;left:34px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--steel);text-transform:uppercase}
+  .hint{position:absolute;z-index:50;bottom:24px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--steel);opacity:.7}
+  .hint.gone{opacity:0;transition:opacity .6s}
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{transition:opacity .01s}.bar{transition:none}
+  }
+
+  /* print -> one slide per page */
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    html,body{overflow:visible;background:#fff}
+    .stage{position:static;transform:none;width:1280px;height:auto;background:transparent}
+    .slide{position:relative;inset:auto;opacity:1!important;visibility:visible!important;transform:none!important;
+      width:1280px;height:720px;page-break-after:always;break-after:page;background:var(--ink);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .stage::after,.hud,.bar,.brandmark,.hint{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 01 COVER -->
+  <section class="slide cover is-active">
+    <div class="logo-row"><i></i>HeiGe-PPT</div>
+    <div class="kick"><span class="rule"></span>演讲锻造系统</div>
+    <h1>PPT 不是写的<br>是<span class="molten">讲</span>的</h1>
+    <div class="tag">把每一页讲成一句话，把整套 deck 导成一场演出。一眼能认出，这是人锻造的，不是机器堆的字墙。</div>
+    <div class="en">Forge the talk. Don't pile up slides.</div>
+  </section>
+
+  <!-- 02 PAIN -->
+  <section class="slide statement">
+    <div class="eyebrow">01 / 问题</div>
+    <p>AI 做的 PPT，<br>是一面<span class="ember">字墙</span>。</p>
+    <div class="small">标题加三个 bullet，一页接一页，母版一个调子到底。投到屏幕上，观众一边听你念，一边走神。</div>
+  </section>
+
+  <!-- 03 PAIN number -->
+  <section class="slide hammer">
+    <div class="spacer" style="flex:0 0 8px"></div>
+    <div class="num">0</div>
+    <div class="cap">讲完之后，记得住的页数</div>
+    <div class="note">字墙的问题不是不好看，是没人记得住。观众走出会议室，你那二十页一页都没留下。</div>
+  </section>
+
+  <!-- 04 TURN -->
+  <section class="slide statement">
+    <div class="eyebrow">02 / 换个做法</div>
+    <p>一页<span class="molten">一句话</span>，<br>一套导成一场演出。</p>
+    <div class="small">每一页只有一个观点、一个主角、一个让人记住的瞬间。讲完之后，观众能复述出你的主线。</div>
+  </section>
+
+  <!-- 05 BACKBONE overview -->
+  <section class="slide list">
+    <div class="eyebrow">03 / 五道锻造工序</div>
+    <h2>每套 deck 都要过一遍。</h2>
+    <div class="rows">
+      <div class="r"><span class="i">01</span><span class="k">一页一句话</span><span class="v">一页只讲一个观点，讲不清就拆页</span></div>
+      <div class="r"><span class="i">02</span><span class="k">黄金三秒</span><span class="v">扫一眼 3 秒看懂，一页一个视觉主角</span></div>
+      <div class="r"><span class="i">03</span><span class="k">节奏编排</span><span class="v">开场抓人到收束行动，有起承转合</span></div>
+      <div class="r"><span class="i">04</span><span class="k">视觉锤</span><span class="v">关键观点配一个让人记住的视觉</span></div>
+      <div class="r"><span class="i">05</span><span class="k">反 AI 体检</span><span class="v">出货前扼杀字墙味，这是交付门槛</span></div>
+    </div>
+  </section>
+
+  <!-- 06 step 01 -->
+  <section class="slide">
+    <div class="step">
+      <div class="no">01</div>
+      <div class="body">
+        <div class="en">One Sentence per Slide</div>
+        <h3>一页一句话</h3>
+        <p>一页只讲一个观点，能用<span class="hot">一句话</span>说清。讲不完的拆成两页，别挤。正文是给你讲的，不是给观众读的。字越少，注意力越在你身上。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 step 02 -->
+  <section class="slide">
+    <div class="step">
+      <div class="no">02</div>
+      <div class="body">
+        <div class="en">The 3-Second Rule</div>
+        <h3>黄金三秒</h3>
+        <p>每页投出来，观众扫一眼 <span class="hot">3 秒</span>就 get 到重点。一页有且只有一个视觉主角，其余全退后。字号往大了上，台下最后一排也要看得清。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 step 03 -->
+  <section class="slide">
+    <div class="step">
+      <div class="no">03</div>
+      <div class="body">
+        <div class="en">Deck Pacing</div>
+        <h3>节奏编排</h3>
+        <p>整套像一场演出：<span class="hot">开场抓人 → 痛点 → 转折 → 论证 → 高潮 → 收束行动</span>。封面立气场，金句页留白，数据页给密度，别一个母版平铺到尾。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 step 04 -->
+  <section class="slide">
+    <div class="step">
+      <div class="no">04</div>
+      <div class="body">
+        <div class="en">Visual Hammer</div>
+        <h3>视觉锤</h3>
+        <p>最关键的观点配一个<span class="hot">让人记住的视觉</span>，像钉子一样砸进脑子。大数字、强对比、一句占满屏的宣言。整套有三五个就够，但必须有。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 step 05 -->
+  <section class="slide">
+    <div class="step">
+      <div class="no">05</div>
+      <div class="body">
+        <div class="en">Anti-Slop Check</div>
+        <h3>反 AI 体检</h3>
+        <p>出货前强制过一遍：还是标题加三 bullet 吗？母版套壳吗？有没有一页能被记住？<span class="hot">命中任何一条都回去改</span>。这不是可选项，是交付门槛。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 MANIFESTO hammer -->
+  <section class="slide statement">
+    <p>敢拿这套<br>直接<span class="molten">上台</span>。</p>
+    <div class="small">讲完台下有人能复述你的主线、记得住你那几页。这是 HeiGe-PPT 的唯一验收标准。</div>
+  </section>
+
+  <!-- 12 HOW TO USE -->
+  <section class="slide use">
+    <div class="eyebrow">04 / 怎么用</div>
+    <h2 style="margin-bottom:8px">三步，把它装上。</h2>
+    <div class="cols">
+      <div class="card"><div class="n">STEP 01</div><h4>装进来</h4><p>克隆仓库，<code>cp -r HeiGe-PPT ~/.claude/skills/</code></p></div>
+      <div class="card"><div class="n">STEP 02</div><h4>说需求</h4><p>「用 HeiGe-PPT 做套创业路演 deck，气质凶悍点」</p></div>
+      <div class="card"><div class="n">STEP 03</div><h4>上台讲</h4><p>键盘翻页，Cmd+P 导出 PDF，投屏开讲</p></div>
+    </div>
+  </section>
+
+  <!-- 13 CLOSE -->
+  <section class="slide close">
+    <div class="eyebrow">FORGE THE TALK</div>
+    <h2>锻造你的<br>下一场<span class="molten">演讲</span>。</h2>
+    <div class="row">
+      <a class="cta" href="https://github.com/HeiGeAi/HeiGe-PPT" target="_blank" rel="noopener">在 GitHub 上获取 →</a>
+      <div class="repo"><b>HeiGeAi/HeiGe-PPT</b><br>作者 黑哥 · 黑哥Ai实验室 · MIT</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="bar" id="bar"></div>
+<div class="brandmark">HeiGe-PPT · 演讲锻造系统</div>
+<div class="hud"><b id="pn">01</b> / <span id="pa">13</span></div>
+<div class="hint" id="hint">← → 或 空格 翻页 · Cmd+P 导出 PDF</div>
+
+<script>
+  const stage=document.getElementById('stage');
+  const slides=[...document.querySelectorAll('.slide')];
+  const pn=document.getElementById('pn'),pa=document.getElementById('pa'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+  let i=0;
+  pa.textContent=String(slides.length).padStart(2,'0');
+
+  function fit(){
+    const s=Math.min(innerWidth/1280, innerHeight/720);
+    stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize',fit); fit();
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{
+      s.classList.toggle('is-active',k===i);
+      s.classList.toggle('is-prev',k<i);
+    });
+    pn.textContent=String(i+1).padStart(2,'0');
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  show(0);
+
+  function next(){show(i+1)} function prev(){show(i-1)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();next();dismissHint()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();dismissHint()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  });
+  // click halves to navigate (ignore link clicks)
+  addEventListener('click',e=>{
+    if(e.target.closest('a'))return;
+    (e.clientX>innerWidth/2?next():prev());dismissHint();
+  });
+  let hintTimer=setTimeout(dismissHint,6000);
+  function dismissHint(){hint.classList.add('gone');clearTimeout(hintTimer)}
+</script>
+</body>
+</html>

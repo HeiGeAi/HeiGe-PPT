@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>云栖优选 · AI 客服升级方案提案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,500&family=Space+Mono:wght@400;700&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f4efe6; --paper-2:#efe8db; --ivory:#faf6ee;
+    --ink:#1f2a44; --ink-soft:#3a4257; --ink-2:#1a1a1a;
+    --wine:#8c2f39; --wine-soft:#a8505a;
+    --dim:#7c7568; --line:#cdc4b2; --line-strong:#b6ab95;
+    --serif-en:"Playfair Display",Georgia,"Times New Roman",serif;
+    --serif-cn:"Noto Serif SC","Songti SC","SimSun",serif;
+    --sans-cn:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    --mono:"Space Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#15110c;overflow:hidden}
+  body{font-family:var(--sans-cn);color:var(--ink)}
+
+  /* ---------- 16:9 stage, scaled to viewport ---------- */
+  .stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%);transform-origin:center center;background:var(--paper);overflow:hidden}
+  .slide{position:absolute;inset:0;padding:64px 84px;display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;transform:translateX(28px);
+    transition:opacity .34s ease,transform .34s ease,visibility 0s linear .34s}
+  .slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .34s ease,transform .34s ease}
+  .slide.is-prev{transform:translateX(-28px)}
+
+  /* faint paper texture */
+  .stage::after{content:"";position:absolute;inset:0;z-index:40;pointer-events:none;opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* shared editorial bits */
+  .folio{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--wine);display:flex;align-items:center;gap:14px}
+  .folio .rule{width:40px;height:1px;background:var(--wine)}
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
+  .eyebrow b{color:var(--wine);font-weight:400}
+  .spacer{flex:1}
+  .wine{color:var(--wine)}
+  .ital{font-family:var(--serif-en);font-style:italic;font-weight:500}
+  .topline{position:absolute;top:0;left:0;right:0;height:6px;background:var(--ink)}
+
+  /* COVER */
+  .cover{justify-content:space-between}
+  .cover .masthead{display:flex;justify-content:space-between;align-items:flex-start;font-family:var(--mono);font-size:13px;letter-spacing:.14em;color:var(--ink-soft)}
+  .cover .masthead .right{text-align:right;color:var(--dim);line-height:1.7}
+  .cover .center{align-self:center;text-align:left;width:100%}
+  .cover .kicker{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:30px;color:var(--wine);margin-bottom:10px}
+  .cover h1{font-family:var(--serif-cn);font-weight:900;font-size:104px;line-height:1.02;letter-spacing:.01em;color:var(--ink)}
+  .cover h1 .sub{display:block;font-family:var(--serif-en);font-weight:700;font-size:60px;letter-spacing:.02em;color:var(--ink);margin-top:14px}
+  .cover .deck-line{display:flex;align-items:center;gap:18px;margin-top:36px}
+  .cover .deck-line .ln{flex:1;height:1px;background:var(--line-strong)}
+  .cover .deck-line span{font-size:17px;color:var(--ink-soft);letter-spacing:.04em}
+  .cover .foot{display:flex;justify-content:space-between;align-items:flex-end;font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--dim)}
+  .cover .foot b{color:var(--ink);font-weight:700}
+
+  /* SECTION DIVIDER */
+  .divider{background:var(--ink);color:var(--paper);justify-content:center}
+  .divider .topline{background:var(--wine)}
+  .divider .secno{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:34px;color:var(--wine-soft)}
+  .divider h2{font-family:var(--serif-cn);font-weight:900;font-size:88px;line-height:1.06;color:var(--paper);margin-top:8px}
+  .divider .en{font-family:var(--mono);font-size:14px;letter-spacing:.26em;text-transform:uppercase;color:#9aa1b4;margin-top:26px}
+  .divider .ln{width:84px;height:2px;background:var(--wine);margin-top:24px}
+
+  /* GENERIC HEADLINE / EDITORIAL */
+  .head h2{font-family:var(--serif-cn);font-weight:900;font-size:62px;line-height:1.12;letter-spacing:.005em;color:var(--ink);margin-top:18px}
+  .head .lead{font-size:23px;color:var(--ink-soft);line-height:1.75;max-width:42em;margin-top:26px}
+  .head .lead b{color:var(--wine);font-weight:700}
+  .thinrule{height:1px;background:var(--line-strong);margin:30px 0}
+
+  /* PAIN — client's own words, restated */
+  .pain .quotebar{border-left:3px solid var(--wine);padding-left:34px;margin-top:14px}
+  .pain .dropcap{font-family:var(--serif-cn);font-weight:900;font-size:50px;color:var(--wine);float:left;line-height:.9;margin:6px 16px 0 0}
+  .pain p.big{font-family:var(--serif-cn);font-weight:700;font-size:40px;line-height:1.42;color:var(--ink);letter-spacing:.005em}
+  .pain .attrib{font-family:var(--mono);font-size:14px;letter-spacing:.06em;color:var(--dim);margin-top:24px}
+  .pain .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:auto;border-top:1px solid var(--line)}
+  .pain .grid3 .c{padding:22px 26px 4px 0;border-right:1px solid var(--line)}
+  .pain .grid3 .c:last-child{border-right:0;padding-right:0}
+  .pain .grid3 .c .t{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--wine);margin-bottom:10px}
+  .pain .grid3 .c p{font-size:18px;color:var(--ink-soft);line-height:1.6}
+
+  /* JUDGMENT — statement */
+  .verdict{justify-content:center}
+  .verdict .eyebrow{margin-bottom:30px}
+  .verdict p{font-family:var(--serif-cn);font-weight:900;font-size:72px;line-height:1.22;letter-spacing:.01em;color:var(--ink)}
+  .verdict .note{font-size:21px;color:var(--ink-soft);line-height:1.7;max-width:40em;margin-top:34px}
+  .verdict .note b{color:var(--wine)}
+
+  /* FRAMEWORK DIAGRAM */
+  .fw .lead{font-size:21px;color:var(--ink-soft);line-height:1.6;max-width:40em;margin-top:14px}
+  .fw .diagram{flex:1;display:flex;align-items:center;justify-content:center;margin-top:6px}
+  .fw svg{width:100%;height:430px}
+  .fw .box-l{font-family:var(--mono);font-size:13px;letter-spacing:.14em;fill:var(--wine)}
+  .fw .box-t{font-family:var(--serif-cn);font-weight:700;font-size:26px;fill:var(--ink)}
+  .fw .box-s{font-family:var(--sans-cn);font-weight:400;font-size:15px;fill:var(--ink-soft)}
+  .fw .core-l{font-family:var(--mono);font-size:13px;letter-spacing:.14em;fill:#c9a96a}
+  .fw .core-t{font-family:var(--serif-cn);font-weight:900;font-size:30px;fill:var(--paper)}
+
+  /* TACTICS list */
+  .tac h2{font-family:var(--serif-cn);font-weight:900;font-size:54px;color:var(--ink);margin-bottom:26px}
+  .tac .rows{border-top:1px solid var(--line-strong)}
+  .tac .r{display:grid;grid-template-columns:74px 300px 1fr;gap:26px;align-items:baseline;padding:20px 0;border-bottom:1px solid var(--line)}
+  .tac .r .i{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:30px;color:var(--wine)}
+  .tac .r .k{font-family:var(--serif-cn);font-weight:700;font-size:27px;color:var(--ink)}
+  .tac .r .v{font-size:18px;color:var(--ink-soft);line-height:1.6}
+
+  /* TIMELINE roadmap */
+  .road h2{font-family:var(--serif-cn);font-weight:900;font-size:54px;color:var(--ink);margin-bottom:8px}
+  .road .track{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:0;align-content:center;position:relative}
+  .road .track::before{content:"";position:absolute;left:0;right:0;top:64px;height:2px;background:var(--line-strong)}
+  .road .ph{padding-right:30px;position:relative}
+  .road .ph .dot{width:16px;height:16px;border-radius:50%;background:var(--paper);border:3px solid var(--wine);position:relative;top:57px;margin-bottom:38px}
+  .road .ph .wk{font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--wine);margin-bottom:8px}
+  .road .ph h4{font-family:var(--serif-cn);font-weight:700;font-size:26px;color:var(--ink);margin-bottom:12px}
+  .road .ph p{font-size:16px;color:var(--ink-soft);line-height:1.6}
+  .road .ph.last .dot{background:var(--wine)}
+
+  /* HAMMER — quantified effect */
+  .hammer{background:var(--ink);color:var(--paper);justify-content:center}
+  .hammer .topline{background:var(--wine)}
+  .hammer .eyebrow{color:#9aa1b4;margin-bottom:18px}
+  .hammer .eyebrow b{color:var(--wine-soft)}
+  .hammer .num{font-family:var(--serif-en);font-weight:900;font-size:248px;line-height:.84;color:var(--paper);letter-spacing:-.01em}
+  .hammer .num .unit{font-size:96px;color:var(--wine-soft)}
+  .hammer .cap{font-family:var(--serif-cn);font-weight:700;font-size:40px;color:var(--paper);margin-top:20px}
+  .hammer .note{font-size:19px;color:#aeb4c4;line-height:1.65;max-width:42em;margin-top:18px}
+  .hammer .note b{color:var(--paper);font-weight:700}
+  .hammer .strip{display:flex;gap:54px;margin-top:34px}
+  .hammer .strip .s b{font-family:var(--serif-en);font-weight:700;font-size:38px;color:var(--wine-soft);display:block}
+  .hammer .strip .s span{font-size:15px;color:#9aa1b4;letter-spacing:.04em}
+
+  /* WHY US */
+  .why .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;flex:1;align-content:center}
+  .why .card{border-top:2px solid var(--ink);padding-top:22px}
+  .why .card .n{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:26px;color:var(--wine)}
+  .why .card h4{font-family:var(--serif-cn);font-weight:700;font-size:28px;color:var(--ink);margin:12px 0 12px}
+  .why .card p{font-size:18px;color:var(--ink-soft);line-height:1.62}
+
+  /* CLOSE — next step */
+  .close{background:var(--ink);color:var(--paper);justify-content:center}
+  .close .topline{background:var(--wine)}
+  .close .kicker{font-family:var(--serif-en);font-style:italic;font-weight:500;font-size:28px;color:var(--wine-soft)}
+  .close h2{font-family:var(--serif-cn);font-weight:900;font-size:80px;line-height:1.1;color:var(--paper);margin-top:10px}
+  .close .steps{display:flex;gap:50px;margin-top:42px}
+  .close .steps .st{flex:1}
+  .close .steps .st .no{font-family:var(--mono);font-size:13px;letter-spacing:.14em;color:var(--wine-soft)}
+  .close .steps .st p{font-size:19px;color:var(--paper);line-height:1.5;margin-top:10px}
+  .close .sign{margin-top:44px;font-family:var(--mono);font-size:14px;letter-spacing:.08em;color:#9aa1b4}
+  .close .sign b{color:var(--paper);font-weight:700}
+
+  /* HUD / progress / brandmark / hint */
+  .hud{position:absolute;z-index:50;bottom:24px;right:32px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--dim)}
+  .hud b{color:var(--ink)}
+  .bar{position:absolute;z-index:50;bottom:0;left:0;height:4px;background:var(--wine);width:0;transition:width .34s ease}
+  .brandmark{position:absolute;z-index:50;bottom:22px;left:32px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+  .hint{position:absolute;z-index:50;bottom:22px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--dim);opacity:.75}
+  .hint.gone{opacity:0;transition:opacity .6s}
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{transition:opacity .01s}.bar{transition:none}
+  }
+
+  /* print -> one slide per page */
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    html,body{overflow:visible;background:#fff}
+    .stage{position:static;transform:none;width:1280px;height:auto;background:transparent}
+    .slide{position:relative;inset:auto;opacity:1!important;visibility:visible!important;transform:none!important;
+      width:1280px;height:720px;page-break-after:always;break-after:page;background:var(--paper);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .slide.divider,.slide.hammer,.slide.close{background:var(--ink)}
+    .stage::after,.hud,.bar,.brandmark,.hint{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 01 COVER -->
+  <section class="slide cover is-active">
+    <div class="topline"></div>
+    <div class="masthead">
+      <div>方案提案 · PROPOSAL</div>
+      <div class="right">青砚工作室 出品<br>2026 · 机密 / CONFIDENTIAL</div>
+    </div>
+    <div class="center">
+      <div class="kicker">A proposal for</div>
+      <h1>云栖优选<span class="sub">AI 客服升级方案</span></h1>
+      <div class="deck-line">
+        <span>让客服从成本中心，变成留住客户的那只手</span>
+        <span class="ln"></span>
+      </div>
+    </div>
+    <div class="foot">
+      <div>呈送 <b>云栖优选 · 用户运营中心</b></div>
+      <div>青砚工作室 · QINGYAN STUDIO</div>
+    </div>
+  </section>
+
+  <!-- 02 PAIN — restate the client's pain first -->
+  <section class="slide pain">
+    <div class="folio"><span class="rule"></span>我们理解的问题</div>
+    <div class="quotebar" style="margin-top:30px">
+      <p class="big"><span class="dropcap">大</span>促一来，工单堆到三天才回。<br>客户等不及，转头就退款，<wbr>还顺手给了一星。</p>
+      <div class="attrib">这是你们运营负责人原话，不是我们替你们编的痛</div>
+    </div>
+    <div class="grid3">
+      <div class="c"><div class="t">人力</div><p>旺季临时招的客服，培训两周就上岗，答非所问</p></div>
+      <div class="c"><div class="t">夜间</div><p>晚 10 点后没人值守，海外订单的问题压到第二天</p></div>
+      <div class="c"><div class="t">口径</div><p>退换货政策三个人三种说法，客户被来回踢皮球</p></div>
+    </div>
+  </section>
+
+  <!-- 03 JUDGMENT -->
+  <section class="slide verdict">
+    <div class="topline"></div>
+    <div class="eyebrow"><b>我们的判断</b> · OUR READ</div>
+    <p>你缺的不是更多客服，<br>是一套<span class="wine">问不倒、答得准</span>的应答能力。</p>
+    <div class="note">堆人解决的是当下，旺季一过又是冗余成本。真正要补的，是把<b>沉在文档和老员工脑子里的答案</b>，变成 7×24 随时能调用的标准应答。</div>
+  </section>
+
+  <!-- 04 SECTION DIVIDER -->
+  <section class="slide divider">
+    <div class="topline"></div>
+    <div class="secno">Section 01</div>
+    <h2>方案框架</h2>
+    <div class="en">THE FRAMEWORK · 三层应答，一条主线</div>
+    <div class="ln"></div>
+  </section>
+
+  <!-- 05 FRAMEWORK DIAGRAM -->
+  <section class="slide fw head">
+    <div class="folio"><span class="rule"></span>方案框架</div>
+    <div class="lead" style="margin-top:14px">不是甩给你一个聊天机器人。是把<b style="color:var(--wine)">知识、应答、人工</b>三层接成一条线，机器先扛，扛不住才转人工。</div>
+    <div class="diagram">
+      <svg viewBox="0 0 1100 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="三层应答框架图">
+        <!-- connectors -->
+        <line x1="220" y1="120" x2="220" y2="200" stroke="#b6ab95" stroke-width="2"/>
+        <line x1="550" y1="120" x2="550" y2="200" stroke="#b6ab95" stroke-width="2"/>
+        <line x1="880" y1="120" x2="880" y2="200" stroke="#b6ab95" stroke-width="2"/>
+        <line x1="220" y1="200" x2="880" y2="200" stroke="#b6ab95" stroke-width="2"/>
+        <line x1="550" y1="200" x2="550" y2="248" stroke="#8c2f39" stroke-width="2.5"/>
+        <line x1="550" y1="372" x2="550" y2="412" stroke="#b6ab95" stroke-width="2"/>
+        <!-- top three sources -->
+        <g>
+          <rect x="70" y="30" width="300" height="90" fill="none" stroke="#1f2a44" stroke-width="2"/>
+          <text x="92" y="62" class="box-l">LAYER · 知识</text>
+          <text x="92" y="92" class="box-t">客户问得最多的 120 问</text>
+        </g>
+        <g>
+          <rect x="400" y="30" width="300" height="90" fill="none" stroke="#1f2a44" stroke-width="2"/>
+          <text x="422" y="62" class="box-l">LAYER · 政策</text>
+          <text x="422" y="92" class="box-t">退换货 / 物流口径统一</text>
+        </g>
+        <g>
+          <rect x="730" y="30" width="300" height="90" fill="none" stroke="#1f2a44" stroke-width="2"/>
+          <text x="752" y="62" class="box-l">LAYER · 订单</text>
+          <text x="752" y="92" class="box-t">实时查单 / 状态接入</text>
+        </g>
+        <!-- core engine -->
+        <g>
+          <rect x="320" y="248" width="460" height="124" fill="#1f2a44"/>
+          <rect x="320" y="248" width="6" height="124" fill="#8c2f39"/>
+          <text x="356" y="288" class="core-l">AI 应答引擎 · CORE</text>
+          <text x="356" y="328" class="core-t">机器先答，答不准才转人工</text>
+          <text x="356" y="356" class="box-s" fill="#aeb4c4">置信度不够自动升级，绝不硬答</text>
+        </g>
+        <!-- outcome -->
+        <g>
+          <rect x="330" y="412" width="440" height="8" fill="#8c2f39"/>
+          <text x="550" y="406" text-anchor="middle" class="box-s" fill="#1f2a44" style="font-weight:700">客户当下拿到答案 · 人工只处理真复杂的</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 06 SECTION DIVIDER -->
+  <section class="slide divider">
+    <div class="topline"></div>
+    <div class="secno">Section 02</div>
+    <h2>关键打法</h2>
+    <div class="en">HOW WE EXECUTE · 四件事，按优先级落</div>
+    <div class="ln"></div>
+  </section>
+
+  <!-- 07 TACTICS -->
+  <section class="slide tac">
+    <div class="folio" style="margin-bottom:18px"><span class="rule"></span>关键打法</div>
+    <h2>先解决最痛的，再补齐全场。</h2>
+    <div class="rows">
+      <div class="r"><span class="i">i</span><span class="k">把高频问题先吃掉</span><span class="v">从近半年工单里挖出占八成量的 120 个问题，先让机器答这批</span></div>
+      <div class="r"><span class="i">ii</span><span class="k">政策口径锁成一份</span><span class="v">退换货、物流、发票统一成单一事实源，三个人不再三种说法</span></div>
+      <div class="r"><span class="i">iii</span><span class="k">夜间海外全接住</span><span class="v">7×24 不打烊，海外订单的问题不再压到第二天上午</span></div>
+      <div class="r"><span class="i">iv</span><span class="k">答不准就交人工</span><span class="v">置信度不够自动转真人，附上完整上下文，客户不用重说一遍</span></div>
+    </div>
+  </section>
+
+  <!-- 08 SECTION DIVIDER -->
+  <section class="slide divider">
+    <div class="topline"></div>
+    <div class="secno">Section 03</div>
+    <h2>落地路径</h2>
+    <div class="en">THE ROADMAP · 八周，分四步上线</div>
+    <div class="ln"></div>
+  </section>
+
+  <!-- 09 ROADMAP timeline -->
+  <section class="slide road">
+    <div class="folio" style="margin-bottom:14px"><span class="rule"></span>落地路径</div>
+    <h2>八周上线，每两周交一个能用的东西。</h2>
+    <div class="track">
+      <div class="ph">
+        <div class="dot"></div>
+        <div class="wk">WEEK 1–2</div>
+        <h4>摸底</h4>
+        <p>翻完近半年工单，盘出高频问题和政策盲区，对齐验收标准</p>
+      </div>
+      <div class="ph">
+        <div class="dot"></div>
+        <div class="wk">WEEK 3–4</div>
+        <h4>搭建</h4>
+        <p>建知识库、接订单系统、调应答引擎，跑通第一版应答</p>
+      </div>
+      <div class="ph">
+        <div class="dot"></div>
+        <div class="wk">WEEK 5–6</div>
+        <h4>灰度</h4>
+        <p>先在一个店铺小范围跑，真人盯着兜底，逐条修偏</p>
+      </div>
+      <div class="ph last">
+        <div class="dot"></div>
+        <div class="wk">WEEK 7–8</div>
+        <h4>全量</h4>
+        <p>全店铺铺开，交付看板和操作手册，团队自己能维护</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 HAMMER — quantified effect -->
+  <section class="slide hammer">
+    <div class="topline"></div>
+    <div class="eyebrow"><b>预期效果</b> · THE OUTCOME</div>
+    <div class="num">85<span class="unit">%</span></div>
+    <div class="cap">的常见问题，机器当场答完</div>
+    <div class="note">这意味着真人客服只用面对那 <b>15%</b> 真正复杂的问题。同样的人手，旺季不再爆仓，客户也不用等三天。</div>
+    <div class="strip">
+      <div class="s"><b>3 天 → 30 秒</b><span>首次响应时长</span></div>
+      <div class="s"><b>7×24</b><span>夜间海外不再断档</span></div>
+      <div class="s"><b>≈ 4 成</b><span>预计省下的客服成本</span></div>
+    </div>
+  </section>
+
+  <!-- 11 WHY US -->
+  <section class="slide why head">
+    <div class="folio"><span class="rule"></span>我们凭什么</div>
+    <h2 style="font-size:54px;margin-top:14px">不是第一次干这事。</h2>
+    <div class="cols">
+      <div class="card">
+        <div class="n">01</div>
+        <h4>做过同行业</h4>
+        <p>给两家电商品牌落过同样的客服系统，旺季的坑我们提前知道在哪</p>
+      </div>
+      <div class="card">
+        <div class="n">02</div>
+        <h4>交的是能力</h4>
+        <p>知识库和应答规则都留在你们这边，我们走了团队照样能维护</p>
+      </div>
+      <div class="card">
+        <div class="n">03</div>
+        <h4>按效果验收</h4>
+        <p>解决率、响应时长写进合同，达不到标准这一期我们不收尾款</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 CLOSE — next step -->
+  <section class="slide close">
+    <div class="topline"></div>
+    <div class="kicker">The next step</div>
+    <h2>下一步，我们先<br>把那 120 个问题挖出来。</h2>
+    <div class="steps">
+      <div class="st"><div class="no">STEP 01</div><p>本周给我们半年的工单导出权限，我们做免费的问题盘点</p></div>
+      <div class="st"><div class="no">STEP 02</div><p>一周后带着盘点结果上门，一起圈定第一期范围</p></div>
+      <div class="st"><div class="no">STEP 03</div><p>范围定了就签，八周后你看到第一版能用的客服</p></div>
+    </div>
+    <div class="sign">青砚工作室 · QINGYAN STUDIO &nbsp;|&nbsp; 联系人 <b>周砚</b> · zhou@qingyan.studio</div>
+  </section>
+
+</div>
+
+<div class="bar" id="bar"></div>
+<div class="brandmark">云栖优选 · AI 客服升级方案</div>
+<div class="hud"><b id="pn">01</b> / <span id="pa">12</span></div>
+<div class="hint" id="hint">← → 或 空格 翻页 · Cmd+P 导出 PDF</div>
+
+<script>
+  const stage=document.getElementById('stage');
+  const slides=[...document.querySelectorAll('.slide')];
+  const pn=document.getElementById('pn'),pa=document.getElementById('pa'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+  let i=0;
+  pa.textContent=String(slides.length).padStart(2,'0');
+
+  function fit(){
+    const s=Math.min(innerWidth/1280, innerHeight/720);
+    stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize',fit); fit();
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{
+      s.classList.toggle('is-active',k===i);
+      s.classList.toggle('is-prev',k<i);
+    });
+    pn.textContent=String(i+1).padStart(2,'0');
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  show(0);
+
+  function next(){show(i+1)} function prev(){show(i-1)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();next();dismissHint()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();dismissHint()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  });
+  addEventListener('click',e=>{
+    if(e.target.closest('a'))return;
+    (e.clientX>innerWidth/2?next():prev());dismissHint();
+  });
+  let hintTimer=setTimeout(dismissHint,6000);
+  function dismissHint(){hint.classList.add('gone');clearTimeout(hintTimer)}
+</script>
+</body>
+</html>
