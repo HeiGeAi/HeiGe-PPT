@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.0-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.1.1-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -83,7 +83,7 @@ HeiGe-PPT 不这么干。它把每一页讲成**一句话**，把整套 deck 导
 
 ## 样例画廊 Gallery
 
-同一套方法论，五种场景气质，做出五套完全不同的 deck。每套都是现场锻造的零依赖单文件，**16:9、键盘 ← → 翻页、Cmd+P 导出 PDF**。点开任意预览图即可看在线 Demo。
+同一套方法论，五种场景气质，做出五套完全不同的 deck。每套都是现场锻造的零依赖单文件，**16:9、键盘 ← → 翻页、Cmd+P 默认横版导出 PDF**。点开任意预览图即可看在线 Demo。
 
 | 预览 | 气质 | 场景 |
 |:--:|:--|:--|
@@ -207,6 +207,10 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.1.1 (2026-06-08)
+- 🖨 修复导出 PDF 默认竖版的问题：deck 是 16:9 横版，现在 Cmd+P / 编辑层「导出 PDF」默认就是横版，每页一张，不再被塞进竖纸里溢出
+- 🎞 五套样例打印底部留白都用各自底色填满（混色 deck 的深色页用 box-shadow 补齐），无白边
 
 ### v1.1.0 (2026-06-08)
 - ✏️ 可编辑层：每套 deck 打开就能在浏览器里直接改幻灯片文字（点左下角「编辑」），改完导出 PDF 或下载带改动的独立 HTML，改动自动存本地、刷新不丢

@@ -43,10 +43,30 @@
 - 装饰性无限动画最多留一个，且只动 `transform` / `opacity`。
 - 尊重 `prefers-reduced-motion: reduce`，关掉非必要动画。
 
-## 六、导出 PDF / 打印（必做）
+## 六、导出 PDF / 打印（必做，横版）
 
-- 加 `@media print`：每个 `.slide` 占满一页（`page-break-after: always` / `break-after: page`），强制显示全部页（关掉「一次一页」的隐藏），背景色用 `print-color-adjust: exact` 保留。
-- 这样用户 Cmd+P「另存为 PDF」就能得到一份每页一张的演示稿。
+deck 是 16:9 横版，导出 PDF 必须默认横版。这里有个坑：`@page{size:1280px 720px}` 这种自定义像素尺寸，浏览器（尤其 Edge）的打印对话框不认，会退回 A4 竖版，把横版幻灯片塞进竖纸里溢出。**只有 `landscape` 朝向关键词的命名纸张能让对话框默认横版**，所以走 `@page{size:A4 landscape}`，再把 1280 的舞台缩到 A4 横版宽度。
+
+```css
+@media print{
+  @page{ size:A4 landscape; margin:0 }
+  /* 彻底重置屏幕端的居中定位，否则 zoom 会算错位置、封面跑到页面外 */
+  html,body{ height:auto!important; overflow:visible!important; background:<deck主色> }
+  .stage{ position:static!important; top:auto!important; left:auto!important;
+          transform:none!important; width:1280px; height:auto; overflow:visible; zoom:.876 }
+  .slide{ position:relative!important; inset:auto!important; opacity:1!important;
+          visibility:visible!important; transform:none!important; transition:none!important;
+          width:1280px; height:720px; overflow:hidden;
+          page-break-after:always; break-after:page; background:<该页底色>;
+          -webkit-print-color-adjust:exact; print-color-adjust:exact }
+  .hud,.bar,.brandmark,.hint{ display:none!important }
+}
+```
+
+- `zoom:.876` 把 1280px 舞台缩到 A4 横版可印宽度（297mm≈1122px），每页一张，文字仍是矢量真文字。
+- **留白用底色填满，不留白边**：A4 横版不是 16:9，每页底部会空出约 162px。`html,body{background}` 设成 deck 主色，纯色 deck 直接无缝。混色 deck（有深色分隔页）给深色页补一句 `box-shadow:0 185px 0 0 <深色>`，把那页的留白用自己的底色刷满，照样无缝。
+- 强制显示全部页（关掉「一次一页」的隐藏），首屏封面就是第 1 页。
+- 这样用户 Cmd+P「另存为 PDF」或点编辑层「导出 PDF」，默认就是横版、每页一张的演示稿。
 
 ## 七、可用性细节
 

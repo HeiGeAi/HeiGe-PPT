@@ -11,7 +11,7 @@ description: >
   注意：本 skill 负责"从零设计有气场的演示 deck"；如果是做单张落地页/网页界面，那是 heige-ui 的活；
   如果是把现成文档转成静态展示长页，那是 html-beautifier 的活。
 author: Blake 黑哥
-version: 1.1.0
+version: 1.1.1
 license: MIT
 compatible_platforms: ["Claude Code", "Cursor", "Windsurf", "Cline", "Aider", "OpenClaw", "Hermes", "ChatGPT", "Claude.ai", "通用 AI 助手"]
 ---

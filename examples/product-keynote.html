@@ -125,11 +125,13 @@
 
   /* print -> one slide per page */
   @media print{
-    @page{size:1280px 720px;margin:0}
-    html,body{overflow:visible;background:#fff}
-    .stage{position:static;transform:none;width:1280px;height:auto;background:transparent}
-    .slide{position:relative;inset:auto;opacity:1!important;visibility:visible!important;transform:none!important;
-      width:1280px;height:720px;page-break-after:always;break-after:page;background:var(--space);
+    @page{size:A4 landscape;margin:0}
+    html,body{height:auto!important;overflow:visible!important;background:#07070d}
+    .stage{position:static!important;top:auto!important;left:auto!important;transform:none!important;
+      width:1280px;height:auto;overflow:visible;background:transparent;zoom:.876}
+    .slide{position:relative!important;inset:auto!important;opacity:1!important;visibility:visible!important;
+      transform:none!important;transition:none!important;width:1280px;height:720px;overflow:hidden;
+      page-break-after:always;break-after:page;background:var(--space);
       -webkit-print-color-adjust:exact;print-color-adjust:exact}
     .stage::after,.stage::before,.hud,.bar,.brandmark,.hint{display:none!important}
   }
