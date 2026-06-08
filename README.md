@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -34,6 +34,7 @@ HeiGe-PPT 不这么干。它把每一页讲成**一句话**，把整套 deck 导
 - ✅ **六种极端气质**，每种都给到能直接上手的打法
 - ✅ **反 AI 体检清单**，把字墙味摁死在上台前
 - ✅ **生产铁律内置**：16:9、键盘翻页、中文不崩、能导出 PDF
+- ✅ **打开就能改**：成品自带可编辑层，点「编辑」在浏览器里直接改幻灯片文字，再导出 PDF 或下载独立 HTML，放映翻页和打字不打架
 - ✅ **五套跨场景样例**，同一套方法论，做出完全不同的 deck
 - ✅ 零依赖单文件，到处都能用
 
@@ -186,7 +187,8 @@ HeiGe-PPT/
 │   ├── aesthetic-directions.md     # 六种气质方向库（每种给到具体打法）
 │   ├── deck-pacing-templates.md    # 五类 deck 的节奏曲线模板
 │   ├── deck-production-spec.md     # 单文件幻灯片硬规格（生产铁律）
-│   └── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
+│   ├── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
+│   └── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
 ├── examples/                       # 同一套方法论 × 五种场景气质
 │   ├── heige-pitch.html            # 凶悍/工业 · 产品路演
 │   ├── product-keynote.html        # 科技/未来 · 发布会 keynote
@@ -205,6 +207,11 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.1.0 (2026-06-08)
+- ✏️ 可编辑层：每套 deck 打开就能在浏览器里直接改幻灯片文字（点左下角「编辑」），改完导出 PDF 或下载带改动的独立 HTML，改动自动存本地、刷新不丢
+- 🎬 放映模式下编辑和方向键翻页不打架（照搬 reveal.js 焦点判断）；工具栏不进 PDF
+- 🧩 做成一段 drop-in 代码（`references/editable-layer.md`），贴进 `</body>` 前即生效，deck 和简历共用；五套样例全部带上
 
 ### v1.0.0 (2026-05-31)
 - 🎉 首次发布
