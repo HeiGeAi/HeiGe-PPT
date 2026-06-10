@@ -2,6 +2,20 @@
 
 本项目所有重要变更记录于此。
 
+## [1.1.2] - 2026-06-10
+
+实体风险清理 + 工具栏位置修复。
+
+### 修复
+- 工具栏从左下角挪到右下角页码上方：原先 `left:16px;bottom:16px` 正好压住每套 deck 左下角的品牌标，5 套样例和 `references/editable-layer.md` 的 drop-in 代码同步改为 `right:16px;bottom:56px`，与页码、品牌标互不重叠。
+- 编辑层正则里内嵌的裸零宽字符（U+200B）改为 `​` 转义写法，行为不变，源码不再藏不可见字符（5 套样例 + drop-in 代码共 6 处）。
+- 示例提案 `consulting-proposal.html` 去真实实体关联：联系邮箱域名改用保留域 `.example`；虚构客户改名「雾屿优选」（经搜索验证无在营商家同名），并在文件头注释和末页页脚加「本案例纯属虚构」声明；预览图同步重做。
+- 示例 deck 的 CTA 外链全部改为占位链接，不再指向真实站点。
+
+### 文档
+- README 安装命令改为 `git clone` 直接落到 `~/.claude/skills/heige-ppt`：目录名与 SKILL.md 的 `name: heige-ppt` 一致，也避免 `cp -r` 把 `.git` 一起拷进 skills 目录。
+- SKILL.md frontmatter 规范化：`author` / `version` / `compatible_platforms` 挪进 `metadata`，顶层只留合法键。
+
 ## [1.1.1] - 2026-06-08
 
 修导出 PDF 默认竖版的问题。

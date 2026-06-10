@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.1-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.1.2-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -111,8 +111,7 @@ cd HeiGe-PPT && python3 -m http.server 8755
 适用于 Claude Code、Cursor、Windsurf、Cline：
 
 ```bash
-git clone https://github.com/HeiGeAi/HeiGe-PPT.git
-cp -r HeiGe-PPT ~/.claude/skills/
+git clone https://github.com/HeiGeAi/HeiGe-PPT.git ~/.claude/skills/heige-ppt
 ```
 
 然后直接说：
@@ -207,6 +206,11 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.1.2 (2026-06-10)
+- 🧰 编辑工具栏从左下角挪到右下角页码上方，不再遮挡每套 deck 左下角的品牌标
+- 🧹 示例提案去真实实体关联：虚构客户改名「雾屿优选」、联系邮箱改用 `.example` 保留域、加「本案例纯属虚构」声明；示例 CTA 外链全部改为占位链接
+- 📦 安装命令改为 `git clone` 直接落到 `~/.claude/skills/heige-ppt`，目录名与 skill name 一致
 
 ### v1.1.1 (2026-06-08)
 - 🖨 修复导出 PDF 默认竖版的问题：deck 是 16:9 横版，现在 Cmd+P / 编辑层「导出 PDF」默认就是横版，每页一张，不再被塞进竖纸里溢出
