@@ -444,7 +444,7 @@
   // ---- inject chrome styles (all screen-only; print hides everything) ----
   var css = document.createElement('style'); css.className = 'he-style';
   css.textContent =
-    '.he-toolbar{position:fixed;left:16px;bottom:16px;z-index:99999;display:flex;gap:6px;align-items:center;'+
+    '.he-toolbar{position:fixed;right:16px;bottom:56px;z-index:99999;display:flex;gap:6px;align-items:center;'+
     'font-family:"Space Mono",ui-monospace,monospace;font-size:12px}'+
     '.he-toolbar button{font:inherit;cursor:pointer;border:1px solid #2a2a31;background:#111114;color:#f3f1ec;'+
     'padding:7px 11px;border-radius:4px;letter-spacing:.02em;line-height:1;transition:background .15s}'+
@@ -569,7 +569,7 @@
     if (e.key && (e.key.indexOf('Arrow')===0 || e.key.indexOf('Page')===0 || e.key==='Home' || e.key==='End' || e.key===' ' || e.key==='Spacebar'))
       e.stopPropagation();                       // keep deck nav from grabbing cursor keys while editing
     if (e.key==='Enter'){ e.preventDefault(); if(document.execCommand) document.execCommand('insertLineBreak'); }
-    if (e.key==='Backspace' && ae.textContent.replace(/​/g,'').trim()==='') e.preventDefault();
+    if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
     if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();

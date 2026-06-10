@@ -4,7 +4,7 @@
 
 ## 用户怎么用
 
-打开 deck，左下角有一条工具栏：
+打开 deck，右下角（页码上方）有一条工具栏：
 
 - **编辑**：点一下进入编辑模式，幻灯片上每一块文字都能直接点进去改（标题、正文、数字、金句）。放映模式下点进某一页的字段就能改，方向键这时交给光标移动、不翻页；点回空白处方向键恢复翻页。再点「完成」退出。
 - **导出 PDF**：走浏览器原生打印（Cmd / Ctrl + P 也行），每页一张，工具栏不会进去。
@@ -40,7 +40,7 @@
 
   var css = document.createElement('style'); css.className = 'he-style';
   css.textContent =
-    '.he-toolbar{position:fixed;left:16px;bottom:16px;z-index:99999;display:flex;gap:6px;align-items:center;'+
+    '.he-toolbar{position:fixed;right:16px;bottom:56px;z-index:99999;display:flex;gap:6px;align-items:center;'+
     'font-family:"Space Mono",ui-monospace,monospace;font-size:12px}'+
     '.he-toolbar button{font:inherit;cursor:pointer;border:1px solid #2a2a31;background:#111114;color:#f3f1ec;'+
     'padding:7px 11px;border-radius:4px;letter-spacing:.02em;line-height:1;transition:background .15s}'+
@@ -158,7 +158,7 @@
     if (e.key && (e.key.indexOf('Arrow')===0 || e.key.indexOf('Page')===0 || e.key==='Home' || e.key==='End' || e.key===' ' || e.key==='Spacebar'))
       e.stopPropagation();
     if (e.key==='Enter'){ e.preventDefault(); if(document.execCommand) document.execCommand('insertLineBreak'); }
-    if (e.key==='Backspace' && ae.textContent.replace(/​/g,'').trim()==='') e.preventDefault();
+    if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
     if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();
