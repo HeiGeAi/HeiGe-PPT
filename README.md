@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.2-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -101,6 +101,17 @@ cd HeiGe-PPT && python3 -m http.server 8755
 ```
 
 > 翻页：`←` `→` 或 `空格`；回首页 `Home`，到末页 `End`；`Cmd/Ctrl + P` 导出每页一张的 PDF。
+
+### 导出可编辑 PPTX（给客户改）
+
+HTML 是你做设计、自己投屏、导高清 PDF 的源。客户要自己改字改价，再给一份 PPTX：
+
+```bash
+cd scripts && npm install            # 首次：装 pptxgenjs + playwright-core
+node scripts/html2pptx.js 你的deck.html 你的deck.pptx
+```
+
+转换器读 deck 的真实渲染几何，转成 PowerPoint / WPS 能直接编辑的原生文本框、色块、线条，对任意 HeiGe-PPT deck 通用，自动用系统已装的 Chrome / Chromium。SVG 框架图这类复杂图形 PPT 画不出来，会转成图片嵌入并在控制台提示。要自己改 → 给 PPTX；要最高视觉 → 用 HTML；要稳 → 两份都给。
 
 ---
 
@@ -206,6 +217,11 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.2.0 (2026-06-20)
+- 📤 双格式交付：内置 `scripts/html2pptx.js` 转换器，把同一份 HTML deck 转成**可编辑 PPTX**，客户拿 PowerPoint / WPS 就能改字改价，一份设计两种格式
+- 🧭 通用转换：在无头 Chromium 里读 deck 的真实渲染几何，映射成 PPT 原生文本框 / 色块 / 线条，对任意 HeiGe-PPT deck 都成立；自动探测系统浏览器，跨 mac / Linux / Windows
+- 🪧 复杂图形（SVG 框架图 / CSS 渐变）转成同位置图片嵌入并明确提示，诚实降级不硬转
 
 ### v1.1.2 (2026-06-10)
 - 🧰 编辑工具栏从左下角挪到右下角页码上方，不再遮挡每套 deck 左下角的品牌标
