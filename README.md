@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.0-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -35,7 +35,7 @@ HeiGe-PPT 不这么干。它把每一页讲成**一句话**，把整套 deck 导
 - ✅ **反 AI 体检清单**，把字墙味摁死在上台前
 - ✅ **生产铁律内置**：16:9、键盘翻页、中文不崩、能导出 PDF
 - ✅ **打开就能改**：成品自带可编辑层，点「编辑」在浏览器里直接改幻灯片文字，再导出 PDF 或下载独立 HTML，放映翻页和打字不打架
-- ✅ **五套跨场景样例**，同一套方法论，做出完全不同的 deck
+- ✅ **六套跨场景样例**，同一套方法论，做出完全不同的 deck
 - ✅ 零依赖单文件，到处都能用
 
 **适用场景**：创业路演、产品发布、年度复盘、方案提案、技术分享、培训课件、述职汇报、招商招生。
@@ -83,12 +83,13 @@ HeiGe-PPT 不这么干。它把每一页讲成**一句话**，把整套 deck 导
 
 ## 样例画廊 Gallery
 
-同一套方法论，五种场景气质，做出五套完全不同的 deck。每套都是现场锻造的零依赖单文件，**16:9、键盘 ← → 翻页、Cmd+P 默认横版导出 PDF**。点开任意预览图即可看在线 Demo。
+同一套方法论，六种场景气质，做出六套完全不同的 deck。每套都是现场锻造的零依赖单文件，**16:9、键盘 ← → 翻页、Cmd+P 默认横版导出 PDF**。点开任意预览图即可看在线 Demo。
 
 | 预览 | 气质 | 场景 |
 |:--:|:--|:--|
 | <a href="https://heigeai.github.io/HeiGe-PPT/examples/heige-pitch.html"><img src="assets/previews/heige-pitch.webp" width="400" alt="heige-pitch" /></a> | **凶悍 / 工业** | HeiGe-PPT 自己的产品路演 |
 | <a href="https://heigeai.github.io/HeiGe-PPT/examples/product-keynote.html"><img src="assets/previews/product-keynote.webp" width="400" alt="product-keynote" /></a> | **科技 / 未来** | AI 产品发布会 keynote |
+| <a href="https://heigeai.github.io/HeiGe-PPT/examples/darktech-keynote.html"><img src="assets/previews/darktech-keynote.webp" width="400" alt="darktech-keynote" /></a> | **科技 / 未来 · 暗色 AI** | Agent 编排控制台 HELM 发布会 |
 | <a href="https://heigeai.github.io/HeiGe-PPT/examples/annual-review.html"><img src="assets/previews/annual-review.webp" width="400" alt="annual-review" /></a> | **克制 / 数据** | 团队年度复盘 |
 | <a href="https://heigeai.github.io/HeiGe-PPT/examples/consulting-proposal.html"><img src="assets/previews/consulting-proposal.webp" width="400" alt="consulting-proposal" /></a> | **优雅 / 高定** | 给客户的方案提案 |
 | <a href="https://heigeai.github.io/HeiGe-PPT/examples/campus-talk.html"><img src="assets/previews/campus-talk.webp" width="400" alt="campus-talk" /></a> | **张扬 / 人文** | 一场技术分享演讲 |
@@ -199,9 +200,10 @@ HeiGe-PPT/
 │   ├── deck-production-spec.md     # 单文件幻灯片硬规格（生产铁律）
 │   ├── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
 │   └── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
-├── examples/                       # 同一套方法论 × 五种场景气质
+├── examples/                       # 同一套方法论 × 六种场景气质
 │   ├── heige-pitch.html            # 凶悍/工业 · 产品路演
-│   ├── product-keynote.html        # 科技/未来 · 发布会 keynote
+│   ├── product-keynote.html        # 科技/未来 · 发布会 keynote（赛博霓虹）
+│   ├── darktech-keynote.html       # 科技/未来 · 暗色 AI（碳黑电绿 · HELM）
 │   ├── annual-review.html          # 克制/数据 · 年度复盘
 │   ├── consulting-proposal.html    # 优雅/高定 · 方案提案
 │   └── campus-talk.html            # 张扬/人文 · 技术分享
@@ -217,6 +219,11 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.3.0 (2026-06-25)
+- ✨ 强化「科技 / 未来」气质方向：在赛博霓虹之外补一套**当代 AI SaaS 配方**（碳黑电绿 / 深空电青 / 冰蓝，单色克制 + 网格辉光，对标 Linear / Vercel / Runway），并讲清和赛博霓虹的区别
+- 🎞 新增碳黑电绿样例 `darktech-keynote.html`：虚构 Agent 编排控制台 HELM 发布会，12 页，签名时刻是巨数字 `8×` 与流程链，全脱敏
+- 🔒 守生产铁律：辉光只用 box-shadow / radial-gradient 不碰 backdrop-filter；零宽字符用 `​` 转义；中文字体系统兜底
 
 ### v1.2.0 (2026-06-20)
 - 📤 双格式交付：内置 `scripts/html2pptx.js` 转换器，把同一份 HTML deck 转成**可编辑 PPTX**，客户拿 PowerPoint / WPS 就能改字改价，一份设计两种格式

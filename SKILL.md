@@ -14,7 +14,7 @@ description: >
 license: MIT
 metadata:
   author: Blake 黑哥
-  version: "1.2.0"
+  version: "1.3.0"
   compatible_platforms: "Claude Code, Cursor, Windsurf, Cline, Aider, OpenClaw, Hermes, ChatGPT, Claude.ai, 通用 AI 助手"
 ---
 
@@ -178,7 +178,8 @@ node scripts/html2pptx.js 你的deck.html 你的deck.pptx
 同一套方法论，跨场景、跨气质能产出完全不同的 deck。以下样例均用本方法论现场锻造，可直接打开、键盘翻页：
 
 - `heige-pitch.html`：HeiGe-PPT 自己的产品路演 deck。凶悍/工业气质。
-- `product-keynote.html`：AI 产品发布会 keynote。科技/未来气质。
+- `product-keynote.html`：AI 产品发布会 keynote。科技/未来气质（赛博霓虹）。
+- `darktech-keynote.html`：Agent 编排控制台 HELM 发布会。科技/未来气质（碳黑电绿，当代 AI SaaS）。
 - `annual-review.html`：团队年度复盘。克制/数据气质。
 - `consulting-proposal.html`：给客户的方案提案。优雅/高定气质。
 - `campus-talk.html`：一场技术分享演讲。张扬/人文气质。

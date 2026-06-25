@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HELM · Agent 编排控制台 发布会</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --space:#0a0a0a; --space-2:#0f0f0f; --panel:#141418;
+    --text:#f0f2ec; --dim:#7e8472; --steel:#3a3f33; --line:#23231b;
+    --acc:#b4ff39; --acc-2:#7da81f;
+    --display:"Space Grotesk","Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --body:"Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden}
+  body{font-family:var(--body);color:var(--text)}
+
+  /* ---------- 16:9 stage, scaled to viewport ---------- */
+  .stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%);transform-origin:center center;background:var(--space);overflow:hidden}
+  .slide{position:absolute;inset:0;padding:72px 92px;display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;transform:translateX(36px);
+    transition:opacity .34s ease,transform .34s ease,visibility 0s linear .34s}
+  .slide.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .34s ease,transform .34s ease}
+  .slide.is-prev{transform:translateX(-36px)}
+
+  /* ambient grid (static texture, no animated blur) */
+  .stage::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.6;
+    background-image:linear-gradient(rgba(180,255,57,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(180,255,57,.035) 1px,transparent 1px);
+    background-size:64px 64px;
+    -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 25%,transparent 72%);
+    mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 25%,transparent 72%)}
+  .slide>*{position:relative;z-index:1}
+  /* top glow on cover-ish slides */
+  .glow-top{position:absolute;top:-160px;left:50%;transform:translateX(-50%);width:900px;height:460px;z-index:0;pointer-events:none;
+    background:radial-gradient(50% 60% at 50% 0%,rgba(180,255,57,.18),transparent 70%)}
+
+  .kick{font-family:var(--mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc);display:flex;align-items:center;gap:14px}
+  .kick .rule{width:46px;height:2px;background:var(--acc)}
+  .ac{color:var(--acc)}
+  .glow-ac{color:var(--acc);text-shadow:0 0 24px rgba(180,255,57,.5),0 0 60px rgba(180,255,57,.22)}
+  .eyebrow{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:26px}
+
+  /* cover */
+  .cover{justify-content:center}
+  .logo-row{display:flex;align-items:center;gap:11px;font-family:var(--mono);font-weight:700;letter-spacing:.06em;font-size:17px;position:absolute;top:64px;left:92px;color:var(--text)}
+  .logo-row i{width:12px;height:12px;background:var(--acc);box-shadow:0 0 16px var(--acc)}
+  .cover h1{font-family:var(--display);font-weight:700;font-size:176px;line-height:.84;letter-spacing:-.03em;margin:14px 0 0}
+  .cover .zh{font-family:var(--body);font-weight:900;font-size:44px;letter-spacing:.04em;margin-top:26px;color:var(--text)}
+  .cover .tag{font-size:21px;color:var(--dim);margin-top:24px;max-width:30em;line-height:1.65}
+  .cover .en{font-family:var(--mono);font-size:13px;letter-spacing:.16em;color:var(--steel);margin-top:42px;text-transform:uppercase}
+
+  /* generic statement */
+  .statement{justify-content:center}
+  .statement p{font-family:var(--body);font-weight:900;font-size:104px;line-height:1.0;letter-spacing:.01em}
+  .statement .small{font-size:21px;color:var(--dim);margin-top:34px;max-width:34em;line-height:1.65}
+
+  h2{font-family:var(--body);font-weight:900;font-size:80px;line-height:1.04;letter-spacing:.005em}
+  .lead{font-size:23px;color:#c4cab8;line-height:1.65;max-width:30em;margin-top:30px}
+  .lead b{color:var(--text)}
+
+  /* big number hammer */
+  .hammer{justify-content:center;align-items:flex-start}
+  .hammer .num{font-family:var(--display);font-weight:700;font-size:300px;line-height:.8;letter-spacing:-.03em}
+  .hammer .cap{font-family:var(--body);font-weight:900;font-size:38px;margin-top:10px}
+  .hammer .note{font-size:19px;color:var(--dim);margin-top:18px;max-width:32em;line-height:1.62}
+
+  /* feature slide */
+  .feat{display:grid;grid-template-columns:288px 1fr;gap:60px;align-items:center;flex:1}
+  .feat .no{font-family:var(--display);font-weight:700;font-size:236px;line-height:.78;color:transparent;-webkit-text-stroke:2px var(--steel)}
+  .feat .body .en{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:15px;color:var(--acc)}
+  .feat .body h3{font-family:var(--body);font-weight:900;font-size:62px;margin:12px 0 20px;line-height:1.02}
+  .feat .body p{font-size:23px;color:#c4cab8;line-height:1.6;max-width:23em}
+  .feat .body p .hot{color:var(--acc);font-weight:700}
+
+  /* killer feature climax: console / flow */
+  .climax{justify-content:center}
+  .climax .lab{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:24px}
+  .climax h2{font-size:88px;line-height:1.02;max-width:16em}
+  .climax .flow{display:flex;align-items:center;gap:16px;margin-top:46px;flex-wrap:wrap}
+  .climax .chip{font-family:var(--mono);font-size:16px;letter-spacing:.04em;padding:13px 20px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+  .climax .chip.on{border-color:var(--acc);color:var(--acc);box-shadow:inset 0 0 0 1px rgba(180,255,57,.3),0 0 24px rgba(180,255,57,.18)}
+  .climax .arrow{font-family:var(--mono);color:var(--steel);font-size:20px}
+
+  /* price slide */
+  .price{justify-content:center}
+  .price .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:8px}
+  .price .card{border:1px solid var(--line);background:var(--panel);padding:34px 30px;display:flex;flex-direction:column}
+  .price .card.hero{border-color:var(--acc);box-shadow:inset 0 0 0 1px rgba(180,255,57,.28)}
+  .price .card .pn{font-family:var(--mono);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .price .card .amt{font-family:var(--display);font-weight:700;font-size:68px;line-height:1;margin:18px 0 6px}
+  .price .card .amt small{font-size:22px;color:var(--dim);font-weight:500}
+  .price .card .desc{font-size:18px;color:#aeb4a2;line-height:1.5;margin-top:auto;padding-top:18px}
+  .price .card.hero .amt{color:var(--acc)}
+
+  /* close */
+  .close{justify-content:center}
+  .close h2{font-family:var(--display);font-weight:700;font-size:124px;line-height:.94;letter-spacing:-.01em}
+  .close .row{display:flex;gap:44px;align-items:flex-end;margin-top:46px;flex-wrap:wrap}
+  .close .cta{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:16px;background:var(--acc);color:#0a1400;padding:18px 26px;text-decoration:none;box-shadow:0 0 30px rgba(180,255,57,.35)}
+  .close .repo{font-family:var(--mono);font-size:15px;color:var(--dim);line-height:1.9}
+  .close .repo b{color:var(--text)}
+
+  /* HUD */
+  .hud{position:absolute;z-index:50;bottom:26px;right:36px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--steel)}
+  .hud b{color:var(--text)}
+  .bar{position:absolute;z-index:50;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--acc-2),var(--acc));width:0;transition:width .34s ease;box-shadow:0 0 12px rgba(180,255,57,.5)}
+  .brandmark{position:absolute;z-index:50;bottom:24px;left:36px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--steel);text-transform:uppercase}
+  .hint{position:absolute;z-index:50;bottom:24px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--steel);opacity:.7}
+  .hint.gone{opacity:0;transition:opacity .6s}
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{transition:opacity .01s}.bar{transition:none}
+  }
+
+  /* print -> one slide per page */
+  @media print{
+    @page{size:A4 landscape;margin:0}
+    html,body{height:auto!important;overflow:visible!important;background:#0a0a0a}
+    .stage{position:static!important;top:auto!important;left:auto!important;transform:none!important;
+      width:1280px;height:auto;overflow:visible;background:transparent;zoom:.876}
+    .slide{position:relative!important;inset:auto!important;opacity:1!important;visibility:visible!important;
+      transform:none!important;transition:none!important;width:1280px;height:720px;overflow:hidden;
+      page-break-after:always;break-after:page;background:var(--space);
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .stage::before,.hud,.bar,.brandmark,.hint{display:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- 01 COVER -->
+  <section class="slide cover is-active">
+    <div class="glow-top"></div>
+    <div class="logo-row"><i></i>HELM · 发布会</div>
+    <div class="kick"><span class="rule"></span>Agent 编排控制台</div>
+    <h1>HELM</h1>
+    <div class="zh">舵手</div>
+    <div class="tag">一条命令，调度你的每一个 Agent。它们并行跑，你只管掌舵。</div>
+    <div class="en">Orchestrate every agent from one console.</div>
+  </section>
+
+  <!-- 02 OLD WORLD PAIN -->
+  <section class="slide statement">
+    <div class="eyebrow">01 / 旧世界</div>
+    <p>一个个<br><span class="glow-ac">手动盯</span> Agent。</p>
+    <div class="small">这个跑完了切下一个，那个卡住了你才发现。十个 Agent 散在十个窗口，盯到天亮，还总漏掉一个。</div>
+  </section>
+
+  <!-- 03 PAIN NUMBER -->
+  <section class="slide hammer">
+    <div class="num glow-ac">5.5h</div>
+    <div class="cap">一个任务串行试错，<span class="ac">耗掉的时间</span></div>
+    <div class="note">三个思路一条一条试，试完第一条不行，回头再试第二条。时间全耗在等结果上。</div>
+  </section>
+
+  <!-- 04 TURN -->
+  <section class="slide statement">
+    <div class="glow-top"></div>
+    <div class="eyebrow">02 / 换个开法</div>
+    <p>让 <span class="glow-ac">HELM</span><br>替你调度整支队伍。</p>
+    <div class="small">你设好目标，它把活扇出给一群 Agent 同时跑。谁卡住、谁跑完，全在一块面板上滚动。</div>
+  </section>
+
+  <!-- 05 FEATURE 01 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">01</div>
+      <div class="body">
+        <div class="en">Parallel Fan-out</div>
+        <h3>并行派发</h3>
+        <p>一条命令把任务扇出给多个 Agent 同时跑，<span class="hot">赛马式比对结果</span>，不再一条线串着等。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 FEATURE 02 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">02</div>
+      <div class="body">
+        <div class="en">Live Observability</div>
+        <h3>实时可观测</h3>
+        <p>每个 Agent 的状态、进度、token、耗时全在一块面板上滚动，<span class="hot">谁卡住一眼看见</span>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 FEATURE 03 -->
+  <section class="slide">
+    <div class="feat">
+      <div class="no">03</div>
+      <div class="body">
+        <div class="en">Self-healing</div>
+        <h3>失败自愈</h3>
+        <p>碰壁自动重试、超预算优雅收尾、出错回滚到上一个干净检查点，<span class="hot">不用你半夜爬起来救</span>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 KILLER FEATURE CLIMAX -->
+  <section class="slide climax">
+    <div class="lab">// 杀手锏</div>
+    <h2>一条命令，<br><span class="glow-ac">八个 Agent 同时开跑</span>。</h2>
+    <div class="flow">
+      <span class="chip">你设目标</span>
+      <span class="arrow">→</span>
+      <span class="chip">HELM 扇出</span>
+      <span class="arrow">→</span>
+      <span class="chip on">8 路并行</span>
+      <span class="arrow">→</span>
+      <span class="chip on">谁活下来用谁</span>
+    </div>
+  </section>
+
+  <!-- 09 GIANT KEY METRIC -->
+  <section class="slide hammer">
+    <div class="num glow-ac">8×</div>
+    <div class="cap">并行吞吐，<span class="ac">对比单线串行</span></div>
+    <div class="note">多花两三倍 token，换回的是时间。效率和时间成本，往往才是项目推进最大的阻力。</div>
+  </section>
+
+  <!-- 10 SLOGAN FILLS SCREEN -->
+  <section class="slide statement">
+    <p style="font-size:120px;line-height:.98">你定方向，<br><span class="glow-ac">HELM</span> 跑全程。</p>
+  </section>
+
+  <!-- 11 PRICE -->
+  <section class="slide price">
+    <div class="eyebrow">03 / 怎么拿到</div>
+    <h2 style="font-size:60px;margin-bottom:30px">今天开放，先到先用。</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="pn">个人版</div>
+        <div class="amt">¥0</div>
+        <div class="desc">每月 1000 次编排免费，并行、可观测、自愈全都有。</div>
+      </div>
+      <div class="card hero">
+        <div class="pn">团队版 · 最划算</div>
+        <div class="amt">¥39<small> /人/月</small></div>
+        <div class="desc">不限编排数，共享 Agent 库，面板多人同看。</div>
+      </div>
+      <div class="card">
+        <div class="pn">企业版</div>
+        <div class="amt">私有<small> 部署</small></div>
+        <div class="desc">落你自己的服务器，接你自己的模型，专人接入。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 CTA CLOSE -->
+  <section class="slide close">
+    <div class="glow-top"></div>
+    <div class="eyebrow">// 下一个大活，换个干法</div>
+    <h2>把队伍<br>交给 <span class="glow-ac">HELM</span>。</h2>
+    <div class="row">
+      <a class="cta" href="#">免费开始编排 →</a>
+      <div class="repo"><b>HELM · Agent 编排控制台</b><br>示例作品 · 非真实产品</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="bar" id="bar"></div>
+<div class="brandmark">HELM · Agent 编排控制台</div>
+<div class="hud"><b id="pn">01</b> / <span id="pa">12</span></div>
+<div class="hint" id="hint">← → 或 空格 翻页 · Cmd+P 导出 PDF</div>
+
+<script>
+  const stage=document.getElementById('stage');
+  const slides=[...document.querySelectorAll('.slide')];
+  const pn=document.getElementById('pn'),pa=document.getElementById('pa'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+  let i=0;
+  pa.textContent=String(slides.length).padStart(2,'0');
+
+  function fit(){
+    const s=Math.min(innerWidth/1280, innerHeight/720);
+    stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+  }
+  addEventListener('resize',fit); fit();
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{
+      s.classList.toggle('is-active',k===i);
+      s.classList.toggle('is-prev',k<i);
+    });
+    pn.textContent=String(i+1).padStart(2,'0');
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  show(0);
+
+  function next(){show(i+1)} function prev(){show(i-1)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){e.preventDefault();next();dismissHint()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();dismissHint()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  });
+  addEventListener('click',e=>{
+    if(e.target.closest('a'))return;
+    (e.clientX>innerWidth/2?next():prev());dismissHint();
+  });
+  let hintTimer=setTimeout(dismissHint,6000);
+  function dismissHint(){hint.classList.add('gone');clearTimeout(hintTimer)}
+</script>
+<!-- ===== HeiGe 可编辑层 (drop-in, 单文件零依赖) ===== -->
+<script>
+(function(){
+  if (window.__heEditable) return; window.__heEditable = true;
+  var slides = [].slice.call(document.querySelectorAll('.slide'));
+  var isDeck = slides.length > 0;
+  var roots = isDeck ? slides : [].slice.call(document.querySelectorAll('.page'));
+  if (!roots.length) return;
+  var KEY = 'heige-edit::' + location.pathname;
+  var editing = false, saveTimer = null;
+
+  var css = document.createElement('style'); css.className = 'he-style';
+  css.textContent =
+    '.he-toolbar{position:fixed;right:16px;bottom:56px;z-index:99999;display:flex;gap:6px;align-items:center;'+
+    'font-family:"Space Mono",ui-monospace,monospace;font-size:12px}'+
+    '.he-toolbar button{font:inherit;cursor:pointer;border:1px solid #2a2a31;background:#111114;color:#f3f1ec;'+
+    'padding:7px 11px;border-radius:4px;letter-spacing:.02em;line-height:1;transition:background .15s}'+
+    '.he-toolbar button:hover{background:#26262e}'+
+    '.he-toolbar button.he-on{background:#b4ff39;color:#0a1400;border-color:#b4ff39;font-weight:700}'+
+    '.he-toolbar .he-status{color:#9a9aa2;font-size:11px;margin-left:4px;min-width:54px}'+
+    '.he-editing [data-he-field]{outline:1px dashed rgba(180,255,57,.55);outline-offset:2px;border-radius:2px}'+
+    '.he-editing [data-he-field]:hover{background:rgba(180,255,57,.07)}'+
+    '.he-editing [data-he-field]:focus{outline:2px solid #b4ff39;background:rgba(180,255,57,.05)}'+
+    '@media print{.he-toolbar{display:none!important}[data-he-field]{outline:none!important;background:none!important}}';
+  document.head.appendChild(css);
+
+  var SEL = 'h1,h2,h3,h4,h5,h6,p,li,td,th,div,span,a,blockquote,figcaption,cite';
+  function hasDirectText(el){
+    for (var i=0;i<el.childNodes.length;i++){ var n=el.childNodes[i];
+      if (n.nodeType===3 && n.textContent.replace(/\s/g,'')!=='') return true; }
+    return false;
+  }
+  function markFields(){
+    roots.forEach(function(root){
+      [].slice.call(root.querySelectorAll(SEL)).forEach(function(el){
+        if (el.hasAttribute('data-he-field')) return;
+        if (!hasDirectText(el)) return;
+        if (el.closest('[data-he-field]')) return;
+        el.setAttribute('data-he-field','');
+      });
+    });
+  }
+
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){return r.innerHTML;}))); } catch(e){}
+    status('已保存');
+  }
+  function restore(){
+    try {
+      var data = JSON.parse(localStorage.getItem(KEY));
+      if (data && data.length === roots.length){ data.forEach(function(h,i){ roots[i].innerHTML = h; }); return true; }
+    } catch(e){}
+    return false;
+  }
+  function status(t){ var s=document.querySelector('.he-status'); if(s){ s.textContent=t; clearTimeout(s.__t); s.__t=setTimeout(function(){s.textContent='';},1600);} }
+
+  function setEdit(on){
+    editing = on;
+    document.body.classList.toggle('he-editing', on);
+    [].slice.call(document.querySelectorAll('[data-he-field]')).forEach(function(f){
+      if (on){ f.setAttribute('contenteditable','true'); f.setAttribute('spellcheck','false'); }
+      else { f.removeAttribute('contenteditable'); }
+    });
+    var b=document.querySelector('[data-act=edit]');
+    if(b){ b.textContent = on ? '完成' : '编辑'; b.classList.toggle('he-on', on); }
+    if(!on){ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+  }
+
+  function exportPDF(){ setEdit(false); setTimeout(function(){ window.print(); }, 60); }
+
+  function downloadHTML(){
+    setEdit(false);
+    var clone = document.documentElement.cloneNode(true);
+    [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style')).forEach(function(n){ n.remove(); });
+    [].slice.call(clone.querySelectorAll('[data-he-field]')).forEach(function(n){
+      n.removeAttribute('data-he-field'); n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
+    });
+    var cb = clone.querySelector('body'); if(cb) cb.classList.remove('he-editing');
+    var html = '<!doctype html>\n' + clone.outerHTML;
+    var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = ((document.title||'heige').replace(/[^\w一-龥\-]+/g,'_').replace(/^_+|_+$/g,'')||'heige') + '.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1500);
+    status('已下载');
+  }
+
+  function reset(){
+    if (!confirm('复位会清掉你在这份上做的所有修改，确定吗？')) return;
+    try { localStorage.removeItem(KEY); } catch(e){}
+    location.reload();
+  }
+
+  function buildToolbar(){
+    var bar = document.createElement('div'); bar.className='he-toolbar';
+    bar.innerHTML =
+      '<button data-act="edit">编辑</button>'+
+      '<button data-act="pdf">导出 PDF</button>'+
+      '<button data-act="html">下载 HTML</button>'+
+      '<button data-act="reset">复位</button>'+
+      '<span class="he-status"></span>';
+    document.body.appendChild(bar);
+    bar.addEventListener('click', function(e){
+      e.stopPropagation();
+      var b = e.target.closest('button'); if(!b) return;
+      var act = b.getAttribute('data-act');
+      if (act==='edit') setEdit(!editing);
+      else if (act==='pdf') exportPDF();
+      else if (act==='html') downloadHTML();
+      else if (act==='reset') reset();
+    });
+  }
+
+  function insertText(t){
+    if (document.execCommand) { document.execCommand('insertText', false, t); return; }
+    var sel = window.getSelection(); if(!sel.rangeCount) return;
+    var r = sel.getRangeAt(0); r.deleteContents(); r.insertNode(document.createTextNode(t)); r.collapse(false);
+  }
+  document.addEventListener('paste', function(e){
+    var ae = document.activeElement; if(!(ae && ae.isContentEditable)) return;
+    e.preventDefault();
+    var t = (e.clipboardData || window.clipboardData).getData('text/plain');
+    insertText(t.replace(/\r/g,''));
+  }, true);
+  document.addEventListener('keydown', function(e){
+    var ae = document.activeElement;
+    if (!(ae && ae.isContentEditable)) return;
+    if (e.key && (e.key.indexOf('Arrow')===0 || e.key.indexOf('Page')===0 || e.key==='Home' || e.key==='End' || e.key===' ' || e.key==='Spacebar'))
+      e.stopPropagation();
+    if (e.key==='Enter'){ e.preventDefault(); if(document.execCommand) document.execCommand('insertLineBreak'); }
+    if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
+  }, true);
+  document.addEventListener('click', function(e){
+    if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();
+  }, true);
+
+  restore();
+  markFields();
+  buildToolbar();
+  roots.forEach(function(r){
+    r.addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer=setTimeout(save, 400); });
+  });
+})();
+</script>
+</body>
+</html>

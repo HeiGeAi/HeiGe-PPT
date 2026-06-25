@@ -2,6 +2,17 @@
 
 本项目所有重要变更记录于此。
 
+## [1.3.0] - 2026-06-25
+
+强化「科技 / 未来」气质方向，补一套当代 AI SaaS 配方。
+
+### 新增
+- 「科技 / 未来」方向在赛博霓虹之外补一套**当代 AI SaaS 配方**：碳黑电绿 / 深空电青 / 冰蓝，单色克制 + 网格辉光，对标 Linear / Vercel / Runway；写进 `references/aesthetic-directions.md`，并讲清和赛博霓虹（品红青 + 网格地平线）的区别。
+- 新增样例 `examples/darktech-keynote.html`：虚构 Agent 编排控制台 HELM 发布会，12 页碳黑电绿单色 deck，签名时刻是巨数字 `8×` 与流程链。全脱敏（HELM 虚构、CTA 占位、末页标注「示例作品 · 非真实产品」）。
+
+### 守规
+- 辉光只用 box-shadow / radial-gradient，不碰 backdrop-filter；编辑层零宽字符用转义写法；中文字体系统兜底；复用通用可编辑层（点编辑改字 / 导出 PDF / 下载 HTML）。
+
 ## [1.2.0] - 2026-06-20
 
 双格式交付。客户不一定会用浏览器编辑器，要一份能在 PowerPoint / WPS 里直接改的 .pptx。加了一个转换器，把同一份 HTML 设计源转成可编辑 PPTX，一份设计两种格式，不用做两遍。
