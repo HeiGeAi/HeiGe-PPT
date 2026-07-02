@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.3.0-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -199,7 +199,8 @@ HeiGe-PPT/
 │   ├── deck-pacing-templates.md    # 五类 deck 的节奏曲线模板
 │   ├── deck-production-spec.md     # 单文件幻灯片硬规格（生产铁律）
 │   ├── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
-│   └── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
+│   ├── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
+│   └── live-show-layer.md          # 现场演示层（全屏 / 截图点击放大 / 一键复制提示词的 drop-in 代码）
 ├── examples/                       # 同一套方法论 × 六种场景气质
 │   ├── heige-pitch.html            # 凶悍/工业 · 产品路演
 │   ├── product-keynote.html        # 科技/未来 · 发布会 keynote（赛博霓虹）
@@ -219,6 +220,10 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.4.0 (2026-07-02)
+- 🎤 现场演示层 `references/live-show-layer.md`：全屏按钮 + F 键、示例截图点击放大 lightbox（打开时接管键盘不翻页）、观众一键复制提示词（带「已复制」反馈）、现场跳转大按钮；与可编辑层共存，自动挂进同一条工具栏。来自一次 105 页线下培训 deck 的真实交付沉淀
+- 🖨 生产规格根治 vh/vw 打印崩版：`.slide` 设 `container-type:size`，页内 vh→cqh / vw→cqw，屏幕表现不变、打印跟随 slide 实际尺寸；带真实截图的 deck 压图后 base64 内嵌保持单文件
 
 ### v1.3.0 (2026-06-25)
 - ✨ 强化「科技 / 未来」气质方向：在赛博霓虹之外补一套**当代 AI SaaS 配方**（碳黑电绿 / 深空电青 / 冰蓝，单色克制 + 网格辉光，对标 Linear / Vercel / Runway），并讲清和赛博霓虹的区别

@@ -14,7 +14,7 @@ description: >
 license: MIT
 metadata:
   author: Blake 黑哥
-  version: "1.3.0"
+  version: "1.4.0"
   compatible_platforms: "Claude Code, Cursor, Windsurf, Cline, Aider, OpenClaw, Hermes, ChatGPT, Claude.ai, 通用 AI 助手"
 ---
 
@@ -134,6 +134,7 @@ HeiGe-PPT 换一种做法：**把每一页讲成一句话，把整套 deck 导�
 - **可导出 PDF**：每页对应一页，打印友好。
 - 字号往大了上，台下最后一排能看清；字体做性格，别用系统默认裸奔。
 - **可编辑**：成品默认带上可编辑层（把 `references/editable-layer.md` 里的 script 块贴在 `</body>` 前），用户打开点「编辑」就能在浏览器里直接改幻灯片文字，改完导出 PDF 或下载独立 HTML；放映模式下方向键翻页和打字不打架，工具栏不进 PDF。
+- **要拿到现场讲的 deck，加现场演示层**（`references/live-show-layer.md`）：全屏按钮 + F 键、示例截图点击放大（lightbox 打开时接管键盘不翻页）、观众一键复制提示词、现场跳转大按钮。培训课、发布会、带观众动手的分享，这层是标配。
 
 ### 第五步：反 AI 体检 + 试讲复检
 
@@ -168,6 +169,7 @@ node scripts/html2pptx.js 你的deck.html 你的deck.pptx
 - `deck-production-spec.md`：单文件 HTML 幻灯片的硬规格（尺寸 / 翻页 / 字体兜底 / 导出 / 性能），照着做不踩坑。
 - `anti-slop-checklist.md`：反 AI 体检清单。出货前逐条过。
 - `editable-layer.md`：可编辑层。一段拖进 `</body>` 前就生效的 script，让成品在浏览器里直接改幻灯片文字、导出 PDF/HTML，放映翻页和打字不打架、工具栏不进打印。
+- `live-show-layer.md`：现场演示层。全屏按钮 + F 键、截图点击放大 lightbox、一键复制提示词、现场跳转按钮，全部不进打印。可与可编辑层共存（自动挂进同一条工具栏）。
 
 ## 工具（scripts/）
 
