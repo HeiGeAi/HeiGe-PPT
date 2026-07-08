@@ -71,7 +71,14 @@
   }
 
   function save(){
-    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){return r.innerHTML;}))); } catch(e){}
+    // 存前先剥掉 contenteditable/spellcheck，否则刷新后字段在放映态仍可编辑、还会吞掉方向键翻页
+    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){
+      var t = r.cloneNode(true);
+      [].slice.call(t.querySelectorAll('[contenteditable]')).forEach(function(n){
+        n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
+      });
+      return t.innerHTML;
+    }))); } catch(e){}
     status('已保存');
   }
   function restore(){
@@ -100,7 +107,9 @@
   function downloadHTML(){
     setEdit(false);
     var clone = document.documentElement.cloneNode(true);
-    [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style')).forEach(function(n){ n.remove(); });
+    // 连现场演示层的运行时覆盖物一并剥掉：lightbox 遮罩 / 自建工具栏。否则放大图开着时下载，
+    // 导出文件会带一个关不掉的全屏遮罩；工具栏也会被重复注入。
+    [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style,.lb,.he-showbar')).forEach(function(n){ n.remove(); });
     [].slice.call(clone.querySelectorAll('[data-he-field]')).forEach(function(n){
       n.removeAttribute('data-he-field'); n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
     });
@@ -161,7 +170,8 @@
     if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
-    if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();
+    // 编辑态下吞掉除工具栏外的一切点击，别让 deck 的「点半屏翻页」在你点空白/拖选时翻走当前页
+    if (editing && !(e.target.closest && e.target.closest('.he-toolbar'))) e.stopPropagation();
   }, true);
 
   restore();
