@@ -27,13 +27,19 @@ const pptxgen = require("pptxgenjs");
 const STAGE_W = 1280, STAGE_H = 720;
 const IN_W = 13.333, IN_H = 7.5;
 const PX2IN = IN_W / STAGE_W;            // px → inch
+const NAVIGATION_TIMEOUT_MS = 10_000;
 const px = (v) => +(v * PX2IN).toFixed(3);
 // CSS px 字号 → pt。PPT 一个逻辑像素 = IN_W/STAGE_W 英寸，1 英寸 = 72pt。
 const PT = (cssPx) => +(cssPx * PX2IN * 72).toFixed(1);
 
-// ---------- 浏览器自动探测：playwright 缓存优先，系统 Chrome / Edge 兜底（跨平台） ----------
-function findBrowser() {
+// ---------- 浏览器自动探测：Playwright 官方路径优先，缓存和系统 Chrome / Edge 兜底（跨平台） ----------
+function findBrowser(chromium) {
   const cands = [];
+  try {
+    if (chromium && typeof chromium.executablePath === "function") {
+      cands.push(chromium.executablePath());
+    }
+  } catch (e) { /* Playwright browser is not installed */ }
   const home = os.homedir();
   const plat = process.platform;
   const pwRoot = process.env.PLAYWRIGHT_BROWSERS_PATH ||
@@ -101,14 +107,17 @@ function mapFont(family) {
 async function extract(htmlPath) {
   const { chromium } = require("playwright-core");
   const { pathToFileURL } = require("url");
-  const exe = findBrowser();
+  const exe = findBrowser(chromium);
   if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或运行 npx playwright install chromium。");
   const browser = await chromium.launch({ executablePath: exe, headless: true });
   try {
   const page = await browser.newPage({ viewport: { width: STAGE_W, height: STAGE_H }, deviceScaleFactor: 2 });
-  // 用 "load" 而非 "networkidle"：Google Fonts 挂起时 networkidle 会拖满 30s 超时报错，
-  // 而 deck 有系统字体兜底，不该被外网字体拖死。字体就绪单独用有界超时等。
-  await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load" }).catch((e) => { throw new Error("无法加载 HTML: " + e.message); });
+  // DOM 可用就进入转换，远程 stylesheet / webfont 不得阻塞整份 deck。
+  // 导航本身也显式封顶，避免浏览器默认 30s 超时重新引入长时间挂起。
+  await page.goto(pathToFileURL(htmlPath).href, {
+    waitUntil: "domcontentloaded",
+    timeout: NAVIGATION_TIMEOUT_MS,
+  }).catch((e) => { throw new Error("无法加载 HTML: " + e.message); });
   await Promise.race([
     page.evaluate(() => document.fonts && document.fonts.ready),
     page.waitForTimeout(3000),
@@ -120,7 +129,8 @@ async function extract(htmlPath) {
     .slide{transform:none!important}
     .slide.he-solo{opacity:1!important;visibility:visible!important;position:absolute!important;inset:0!important;z-index:9999!important}
     .slide.he-hide{opacity:0!important;visibility:hidden!important}
-    .he-toolbar,.he-showbar,.lb,.hud,.bar,.hint,.brandmark,.prog,.pgfoot,.toolbar{display:none!important}` });
+    body>.he-toolbar,body>.he-showbar,body>.lb,body>.hud,body>.bar,body>.hint,
+    body>.brandmark,body>.prog,body>.pgfoot,body>.toolbar{display:none!important}` });
 
   const slideCount = await page.evaluate(() => document.querySelectorAll(".slide").length);
   if (!slideCount) throw new Error("这份 HTML 里没有 .slide 页面，不是 HeiGe-PPT deck？");
@@ -402,11 +412,11 @@ function build(slidesData, outPath) {
   return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed }));
 }
 
-(async () => {
-  const [, , inArg, outArg] = process.argv;
-  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx]"); process.exit(1); }
+async function main(argv = process.argv.slice(2)) {
+  const [inArg, outArg] = argv;
+  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx]"); return 1; }
   const htmlPath = path.resolve(inArg);
-  if (!fs.existsSync(htmlPath)) { console.error("找不到文件:", htmlPath); process.exit(1); }
+  if (!fs.existsSync(htmlPath)) { console.error("找不到文件:", htmlPath); return 1; }
   const outPath = path.resolve(outArg || htmlPath.replace(/\.html?$/i, "") + ".pptx");
 
   console.log("→ 读取 deck 渲染几何 …");
@@ -421,4 +431,13 @@ function build(slidesData, outPath) {
   if (svgF > 0) {
     console.log(`\n⚠ 注意：有 ${svgF} 处图形截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
   }
-})().catch((e) => { console.error("转换失败:", e.message); process.exit(1); });
+  return 0;
+}
+
+if (require.main === module) {
+  main()
+    .then((code) => { process.exitCode = code; })
+    .catch((e) => { console.error("转换失败:", e.message); process.exitCode = 1; });
+}
+
+module.exports = { findBrowser };
