@@ -66,7 +66,7 @@
   .cover .tstamp{position:absolute;top:2px;right:0;font-family:var(--mono);font-size:13px;
     letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
   .cover h1{font-family:var(--han);font-weight:900;font-size:118px;line-height:.96;letter-spacing:.005em;margin:14px 0 0}
-  .cover h1 .q{font-family:var(--slab);font-weight:400;font-size:150px}
+  .cover h1 .q{font-family:var(--han);font-weight:900;font-size:150px}
   .cover .sub{font-size:21px;color:var(--cream-dim);margin-top:34px;max-width:32em;line-height:1.65}
   .cover .sub b{color:var(--cream)}
   .cover .en{font-family:var(--mono);font-size:13px;letter-spacing:.16em;color:var(--muted);
@@ -75,7 +75,7 @@
   /* ---- giant question / statement ---- */
   .ask{justify-content:center}
   .ask .q{font-family:var(--han);font-weight:900;font-size:96px;line-height:1.02;letter-spacing:.005em}
-  .ask .q .big{font-family:var(--slab);font-weight:400}
+  .ask .q .big{font-family:var(--han);font-weight:900;color:var(--coral)}
   .ask .small{font-size:22px;margin-top:34px;max-width:30em;line-height:1.65;opacity:.82}
 
   /* ---- contrast slide ---- */
@@ -96,7 +96,7 @@
   /* ---- visual hammer: one line filling screen ---- */
   .hammer{justify-content:center}
   .hammer .line{font-family:var(--han);font-weight:900;font-size:104px;line-height:1.04;letter-spacing:.004em}
-  .hammer .line .mark{font-family:var(--slab);font-weight:400}
+  .hammer .line .mark{font-family:var(--han);font-weight:900;color:var(--coral)}
   .hammer .tag{font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:30px}
 
   /* ---- big number hammer ---- */
@@ -471,7 +471,7 @@
     if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
-    if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();
+    if (editing && !(e.target.closest && e.target.closest('.he-toolbar'))) e.stopPropagation();
   }, true);
 
   // ---- boot ----
