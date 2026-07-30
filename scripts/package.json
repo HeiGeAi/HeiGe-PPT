@@ -1,6 +1,6 @@
 {
   "name": "heige-ppt-scripts",
-  "version": "1.2.0",
+  "version": "1.4.1",
   "private": true,
   "description": "HeiGe-PPT 双格式交付转换器：把 HTML deck 转成可编辑 PPTX",
   "bin": {
