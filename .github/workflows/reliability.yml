@@ -22,3 +22,5 @@ jobs:
       - run: npm ci --prefix scripts
       - run: ./scripts/node_modules/.bin/playwright-core install --with-deps chromium
       - run: npm test --prefix scripts
+      - run: npm run test:release --prefix scripts
+      - run: npm audit --prefix scripts
