@@ -445,7 +445,7 @@
     if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
-    if (editing && e.target.closest && e.target.closest('[data-he-field]')) e.stopPropagation();
+    if (editing && !(e.target.closest && e.target.closest('.he-toolbar'))) e.stopPropagation();
   }, true);
 
   // ---- boot ----

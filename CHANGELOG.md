@@ -2,6 +2,35 @@
 
 本项目所有重要变更记录于此。
 
+## [1.4.1] - 2026-07-09
+
+一次全仓库审查后的加固。多 agent 审出、主控逐条对着真实文件核实、html2pptx 的修复用真实 deck 跑通验证（深色 + 浅色各一份）。
+
+### 修复 · 可编辑层（references/editable-layer.md）
+- **自动保存不再把 `contenteditable` 写进 localStorage**。此前刷新后字段在放映态仍可编辑、还会吞掉方向键翻页。改成序列化前先克隆剥属性。
+- **下载 HTML 时一并剥掉现场演示层的运行时覆盖物**（`.lb` 遮罩 / `.he-showbar`）。此前放大图开着时下载，导出文件会带一个关不掉的全屏遮罩，并重复注入。
+- **编辑态点击不再误翻页**。此前点空白/拖选时 deck 的「点半屏翻页」会翻走当前页。改成编辑态吞掉除工具栏外的一切点击。六个样例内嵌的旧副本一并修。
+
+### 修复 · 现场演示层（references/live-show-layer.md）
+- **lightbox 打开时拦住全部翻页键**（补 PageUp/PageDown/上下键/Home/End）。此前翻页笔发的 PageDown 会在放大图背后连翻数页。
+- **F / P 热键加修饰键和表单守卫**。此前 Cmd+F 查找会触发全屏、输入框里打含 f/p 的字会误触全屏和打印。
+- **copyPrompt 兜底检查 execCommand 返回值**，复制失败如实提示，不再谎报「已复制」。
+- **lightbox 改事件委托**，免疫可编辑层 restore() 的 innerHTML 替换（此前直绑监听器会被抹掉，点图无反应）。
+- **打印隐藏复制/跳转按钮**（`[data-he-live]` 自动标记），与自家铁律对齐。
+
+### 修复 · 转换器（scripts/html2pptx.js）
+- **背景色回退链 slide → stage → body**。此前深色 deck 把底色画在 `.stage`/`body` 上时只读 `.slide` 拿到透明，PPT 落白底、浅色正文整页看不见。已用 darktech-keynote 实测：每页背景正确落 `#0A0A0A`。
+- **页面加载用 `load` 而非 `networkidle`** + 字体就绪有界超时。此前 Google Fonts 挂起会拖满 30s 超时报错，字体兜底形同虚设。
+- **带小图标的容器不再整块丢底色**（svg 占比 <80% 时容器底色/边框照常出）。
+- **自带底色的文字元素**（CTA 按钮、徽章、chip）现在先铺色块再叠文字，不再只剩悬空文字。
+- **SVG 截图失败留红色虚线占位框 + 控制台计数提示**，不再无声丢图。
+- 浏览器探测补 `/snap/bin/chromium`、`/opt/google/chrome/chrome`、`microsoft-edge`。
+
+### 修复 · 文档与样例
+- **SKILL.md / README 的 html2pptx 用法命令**：`cd scripts && npm install` 后又跑 `scripts/html2pptx.js` 会找成 `scripts/scripts/...` 必失败，改为 `npm --prefix scripts install`，从仓库根一把跑通。
+- README 项目结构树补上遗漏的 `scripts/` 目录。
+- 样例 `campus-talk.html`：中文强调词此前套无 CJK 字形的 Anton + weight 400，强调反而比周围细，改回中文字体 900 + 强调色。
+
 ## [1.4.0] - 2026-07-02
 
 现场演示层。来自一次真实线下培训交付（14 课 AI 课程、105 页分享 deck）的功能沉淀，全部实跑验证。

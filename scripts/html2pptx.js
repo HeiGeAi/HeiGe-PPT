@@ -27,13 +27,19 @@ const pptxgen = require("pptxgenjs");
 const STAGE_W = 1280, STAGE_H = 720;
 const IN_W = 13.333, IN_H = 7.5;
 const PX2IN = IN_W / STAGE_W;            // px → inch
+const NAVIGATION_TIMEOUT_MS = 10_000;
 const px = (v) => +(v * PX2IN).toFixed(3);
 // CSS px 字号 → pt。PPT 一个逻辑像素 = IN_W/STAGE_W 英寸，1 英寸 = 72pt。
 const PT = (cssPx) => +(cssPx * PX2IN * 72).toFixed(1);
 
-// ---------- 浏览器自动探测：playwright 缓存优先，系统 Chrome / Edge 兜底（跨平台） ----------
-function findBrowser() {
+// ---------- 浏览器自动探测：Playwright 官方路径优先，缓存和系统 Chrome / Edge 兜底（跨平台） ----------
+function findBrowser(chromium) {
   const cands = [];
+  try {
+    if (chromium && typeof chromium.executablePath === "function") {
+      cands.push(chromium.executablePath());
+    }
+  } catch (e) { /* Playwright browser is not installed */ }
   const home = os.homedir();
   const plat = process.platform;
   const pwRoot = process.env.PLAYWRIGHT_BROWSERS_PATH ||
@@ -58,7 +64,8 @@ function findBrowser() {
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     // linux
     "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
-    "/usr/bin/chromium", "/usr/bin/chromium-browser",
+    "/usr/bin/chromium", "/usr/bin/chromium-browser", "/snap/bin/chromium",
+    "/opt/google/chrome/chrome", "/usr/bin/microsoft-edge",
     // windows
     "C:/Program Files/Google/Chrome/Application/chrome.exe",
     "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
@@ -100,20 +107,30 @@ function mapFont(family) {
 async function extract(htmlPath) {
   const { chromium } = require("playwright-core");
   const { pathToFileURL } = require("url");
-  const exe = findBrowser();
+  const exe = findBrowser(chromium);
   if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或运行 npx playwright install chromium。");
   const browser = await chromium.launch({ executablePath: exe, headless: true });
   try {
   const page = await browser.newPage({ viewport: { width: STAGE_W, height: STAGE_H }, deviceScaleFactor: 2 });
-  const resp = await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "networkidle" }).catch((e) => { throw new Error("无法加载 HTML: " + e.message); });
-  await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});  // 等 webfont 就绪
+  // DOM 可用就进入转换，远程 stylesheet / webfont 不得阻塞整份 deck。
+  // 导航本身也显式封顶，避免浏览器默认 30s 超时重新引入长时间挂起。
+  await page.goto(pathToFileURL(htmlPath).href, {
+    waitUntil: "domcontentloaded",
+    timeout: NAVIGATION_TIMEOUT_MS,
+  }).catch((e) => { throw new Error("无法加载 HTML: " + e.message); });
+  await Promise.race([
+    page.evaluate(() => document.fonts && document.fonts.ready),
+    page.waitForTimeout(3000),
+  ]).catch(() => {});                                   // webfont 就绪或 3s 兜底，谁先到算谁
   await page.waitForTimeout(250);                       // 字体替换后再稳一帧
   // 关掉切页动画。注意：不强制所有页叠在 inset:0 同时可见——那会让一页的元素几何/截图
   // 串进相邻页。改为逐页「只显示当前页」隔离量取。
   await page.addStyleTag({ content: `*{transition:none!important;animation:none!important}
     .slide{transform:none!important}
     .slide.he-solo{opacity:1!important;visibility:visible!important;position:absolute!important;inset:0!important;z-index:9999!important}
-    .slide.he-hide{opacity:0!important;visibility:hidden!important}` });
+    .slide.he-hide{opacity:0!important;visibility:hidden!important}
+    body>.he-toolbar,body>.he-showbar,body>.lb,body>.hud,body>.bar,body>.hint,
+    body>.brandmark,body>.prog,body>.pgfoot,body>.toolbar{display:none!important}` });
 
   const slideCount = await page.evaluate(() => document.querySelectorAll(".slide").length);
   if (!slideCount) throw new Error("这份 HTML 里没有 .slide 页面，不是 HeiGe-PPT deck？");
@@ -142,13 +159,24 @@ async function extract(htmlPath) {
     };
 
     const out = { texts: [], shapes: [], svgs: [], bg: null };
+    // 背景色：.slide 自身透明时回退取 .stage / body。深色 deck 常把底色画在舞台或 body 上，
+    // 只读 .slide 会拿到透明 → PPT 落默认白底 → 浅色正文整页看不见。
+    const transp = (c) => !c || /rgba?\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
     out.bg = cs(slide).backgroundColor;
+    if (transp(out.bg)) out.bg = cs(stage).backgroundColor;
+    if (transp(out.bg)) out.bg = cs(document.body).backgroundColor;
 
       // 背景色块 / 边框 / 细线：非文字、有可见背景或边框的块
       const blockSel = "div,section,span,header,aside,figure,hr";
       slide.querySelectorAll(blockSel).forEach((el) => {
         if (hasDirectText(el)) return;                  // 文字块走文字通道
-        if (el.querySelector("svg")) return;            // 交给 svg 通道
+        // 只有当元素基本就是这个 svg（svg 占了 ≥80% 面积）才整块跳过；否则容器自己的底色/
+        // 边框照常出（svg 作为图片叠在上层），避免带小图标的卡片整张丢底色。
+        const _svg = el.querySelector("svg");
+        if (_svg) {
+          const er = el.getBoundingClientRect(), gr = _svg.getBoundingClientRect();
+          if (er.width && er.height && (gr.width * gr.height) / (er.width * er.height) > 0.8) return;
+        }
         const r = rectOf(el);
         if (!visible(el, r.raw)) return;
         const s = cs(el);
@@ -242,6 +270,15 @@ async function extract(htmlPath) {
         }
         const r = rectOf(el);
         if (!visible(el, r.raw)) return;
+        // 自带底色/边框的文字元素（CTA 按钮、徽章、数据 chip）：先在同位置铺色块再叠文字，
+        // 否则转出的 PPT 只剩一行悬空文字，彩色圆角块消失。
+        const es = cs(el);
+        const eHasBg = es.backgroundColor && !/rgba?\(0, 0, 0, 0\)|transparent/.test(es.backgroundColor);
+        const ebw = parseFloat(es.borderTopWidth) || 0;
+        const eHasBorder = ebw > 0 && !/rgba?\(0, 0, 0, 0\)/.test(es.borderTopColor);
+        if (eHasBg || eHasBorder) out.shapes.push({ x: r.x, y: r.y, w: r.w, h: r.h,
+          fill: eHasBg ? es.backgroundColor : null,
+          border: eHasBorder ? { color: es.borderTopColor, w: ebw } : null, line: null, lineColor: null });
         pushText(el, r);
       });
     return out;
@@ -286,7 +323,7 @@ function build(slidesData, outPath) {
   pres.author = "HeiGe-PPT";
   pres.title = path.basename(outPath, ".pptx");
 
-  let svgWarnings = 0;
+  let svgWarnings = 0, svgFailed = 0;
   slidesData.forEach((sd) => {
     const s = pres.addSlide();
     const bgHex = rgbToHex(sd.bg);
@@ -312,6 +349,13 @@ function build(slidesData, outPath) {
       if (sv.data) {
         s.addImage({ data: sv.data, x: px(sv.x), y: px(sv.y), w: px(sv.w), h: px(sv.h) });
         svgWarnings++;
+      } else {
+        // 截图失败：留一个红色虚线占位框 + 提示文字，别让图无声消失、控制台还显示已生成
+        s.addShape(pres.shapes.RECTANGLE, { x: px(sv.x), y: px(sv.y), w: px(sv.w), h: px(sv.h),
+          fill: { type: "none" }, line: { color: "C0392B", width: 1, dashType: "dash" } });
+        s.addText("图形转换失败，请人工补", { x: px(sv.x), y: px(sv.y), w: px(sv.w), h: px(sv.h),
+          align: "center", valign: "middle", fontSize: 9, color: "C0392B" });
+        svgFailed++;
       }
     });
 
@@ -365,23 +409,35 @@ function build(slidesData, outPath) {
     });
   });
 
-  return pres.writeFile({ fileName: outPath }).then(() => svgWarnings);
+  return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed }));
 }
 
-(async () => {
-  const [, , inArg, outArg] = process.argv;
-  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx]"); process.exit(1); }
+async function main(argv = process.argv.slice(2)) {
+  const [inArg, outArg] = argv;
+  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx]"); return 1; }
   const htmlPath = path.resolve(inArg);
-  if (!fs.existsSync(htmlPath)) { console.error("找不到文件:", htmlPath); process.exit(1); }
+  if (!fs.existsSync(htmlPath)) { console.error("找不到文件:", htmlPath); return 1; }
   const outPath = path.resolve(outArg || htmlPath.replace(/\.html?$/i, "") + ".pptx");
 
   console.log("→ 读取 deck 渲染几何 …");
   const data = await extract(htmlPath);
   console.log(`→ 解析到 ${data.length} 页，开始生成可编辑 PPTX …`);
-  const svgN = await build(data, outPath);
+  const { ok: svgN, failed: svgF } = await build(data, outPath);
   console.log("✓ 已生成:", outPath);
   if (svgN > 0) {
     console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
     console.log("  如需在 PPT 中编辑这些图，请用 PowerPoint 的形状重画，或保留 HTML 版作为该图的可编辑源。");
   }
-})().catch((e) => { console.error("转换失败:", e.message); process.exit(1); });
+  if (svgF > 0) {
+    console.log(`\n⚠ 注意：有 ${svgF} 处图形截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
+  }
+  return 0;
+}
+
+if (require.main === module) {
+  main()
+    .then((code) => { process.exitCode = code; })
+    .catch((e) => { console.error("转换失败:", e.message); process.exitCode = 1; });
+}
+
+module.exports = { findBrowser };

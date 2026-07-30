@@ -14,7 +14,7 @@ description: >
 license: MIT
 metadata:
   author: Blake 黑哥
-  version: "1.4.0"
+  version: "1.4.1"
   compatible_platforms: "Claude Code, Cursor, Windsurf, Cline, Aider, OpenClaw, Hermes, ChatGPT, Claude.ai, 通用 AI 助手"
 ---
 
@@ -150,7 +150,7 @@ HeiGe-PPT 换一种做法：**把每一页讲成一句话，把整套 deck 导�
 但客户不一定会用浏览器编辑器。**客户要自己改字改价，就再给一份 PPTX**——用内置转换器把同一份 HTML 转成可编辑 PPTX，每个文字都是原生文本框，PowerPoint / WPS 打开就能改。
 
 ```bash
-cd scripts && npm install            # 首次：装 pptxgenjs + playwright-core
+npm --prefix scripts install         # 首次：装 pptxgenjs + playwright-core
 node scripts/html2pptx.js 你的deck.html 你的deck.pptx
 ```
 

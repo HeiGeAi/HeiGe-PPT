@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.4.0-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.4.1-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -108,7 +108,7 @@ cd HeiGe-PPT && python3 -m http.server 8755
 HTML 是你做设计、自己投屏、导高清 PDF 的源。客户要自己改字改价，再给一份 PPTX：
 
 ```bash
-cd scripts && npm install            # 首次：装 pptxgenjs + playwright-core
+npm --prefix scripts install         # 首次：装 pptxgenjs + playwright-core
 node scripts/html2pptx.js 你的deck.html 你的deck.pptx
 ```
 
@@ -208,6 +208,10 @@ HeiGe-PPT/
 │   ├── annual-review.html          # 克制/数据 · 年度复盘
 │   ├── consulting-proposal.html    # 优雅/高定 · 方案提案
 │   └── campus-talk.html            # 张扬/人文 · 技术分享
+├── scripts/                        # 双格式交付转换器
+│   ├── html2pptx.js                # HTML deck → 可编辑 PPTX（读渲染几何映射成原生文本框）
+│   ├── package.json
+│   └── README.md
 ├── assets/
 │   └── previews/                   # README 用的样例预览图（WebP）
 ├── LICENSE
