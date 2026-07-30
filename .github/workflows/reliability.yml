@@ -1,0 +1,26 @@
+name: reliability
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  html2pptx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci --prefix scripts
+      - run: ./scripts/node_modules/.bin/playwright-core install --with-deps chromium
+      - run: npm test --prefix scripts
+      - run: npm run test:release --prefix scripts
+      - run: npm audit --prefix scripts

@@ -35,7 +35,7 @@
   .lb-x{position:fixed;top:2.6vh;right:2.8vw;font-size:14px;letter-spacing:.08em;
       color:rgba(255,255,255,.75);pointer-events:none}
   .slide img[data-zoom]{cursor:zoom-in}
-  @media print{.lb,.he-showbar{display:none!important}}
+  @media print{.lb,.he-showbar,[data-he-live]{display:none!important}}
 </style>
 <script>
 (function(){
@@ -49,38 +49,52 @@
   // 一键复制提示词：<button onclick="copyPrompt(this)" data-prompt="整段提示词">复制提示词</button>
   window.copyPrompt = function(btn){
     var p = btn.getAttribute('data-prompt') || '';
-    function ok(){ var o=btn.textContent; btn.textContent='已复制';
+    function flash(txt){ var o=btn.textContent; btn.textContent=txt;
       setTimeout(function(){ btn.textContent=o; },1400); }
+    var ok=function(){ flash('已复制'); }, fail=function(){ flash('复制失败，请手动选中'); };
     if (navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(p).then(ok, fallback);
     } else fallback();
+    // fallback 检查 execCommand 返回值：失败时如实提示，不谎报「已复制」
     function fallback(){ var t=document.createElement('textarea'); t.value=p;
-      document.body.appendChild(t); t.select();
-      try{ document.execCommand('copy'); ok(); }catch(e){} t.remove(); }
+      t.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(t); t.focus(); t.select();
+      var okd=false; try{ okd=document.execCommand('copy'); }catch(e){} t.remove();
+      okd ? ok() : fail(); }
   };
 
-  // 图片点击放大 lightbox：默认接管 .slide 里带 data-zoom 的图；
-  // 想全量接管改成 '.slide img:not([data-nozoom])'
+  // 图片点击放大 lightbox：事件委托到 document（捕获段），免疫可编辑层 restore() 的 innerHTML
+  // 替换（直绑到每张 img 的监听器会被 innerHTML 重写抹掉）。想全量接管把选择器换掉即可。
   var lb = document.createElement('div'); lb.className='lb';
   lb.innerHTML = '<span class="lb-x">点任意处 · 或按 ESC 关闭</span><img alt="放大图">';
   document.body.appendChild(lb);
   var big = lb.querySelector('img');
-  [].forEach.call(document.querySelectorAll('.slide img[data-zoom]'), function(im){
-    im.addEventListener('click', function(e){ e.stopPropagation(); big.src=this.src; lb.classList.add('on'); });
-  });
+  document.addEventListener('click', function(e){
+    var im = e.target.closest && e.target.closest('.slide img[data-zoom]');
+    if (!im) return;
+    e.stopPropagation(); big.src=im.src; lb.classList.add('on');
+  }, true);
   lb.addEventListener('click', function(e){ e.stopPropagation(); lb.classList.remove('on'); });
   window.LBopen  = function(){ return lb.classList.contains('on'); };
   window.LBclose = function(){ lb.classList.remove('on'); };
 
-  // 键盘：lightbox 打开时捕获段拦截翻页键；F 全屏、P 打印（编辑态不抢键）
+  // 演示交互元素（复制提示词按钮、现场跳转大按钮）标记出来，@media print 里统一隐藏
+  [].forEach.call(document.querySelectorAll('[onclick]'), function(b){
+    if (/copyPrompt/.test(b.getAttribute('onclick')||'')) b.setAttribute('data-he-live','');
+  });
+  [].forEach.call(document.querySelectorAll('a.lk-btn'), function(a){ a.setAttribute('data-he-live',''); });
+
+  // 键盘：lightbox 打开时捕获段吞掉一切翻页键（含翻页笔的 PageUp/Down、上下键、Home/End），
+  // 只让关图键触发关闭；F 全屏、P 打印（编辑态、表单里、带修饰键时都不抢键）
+  var isField = function(el){ return el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName||'')); };
+  var CLOSE = ['Escape','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' ','Spacebar','Enter'];
   document.addEventListener('keydown', function(e){
-    var ae = document.activeElement;
-    if (ae && ae.isContentEditable) return;
+    if (isField(document.activeElement)) return;
     if (window.LBopen()){
-      if (['Escape','ArrowLeft','ArrowRight',' '].indexOf(e.key)>-1){
-        e.preventDefault(); e.stopPropagation(); window.LBclose(); }
+      e.preventDefault(); e.stopPropagation();
+      if (CLOSE.indexOf(e.key)>-1) window.LBclose();
       return;
     }
+    if (e.metaKey||e.ctrlKey||e.altKey) return;         // 放行 Cmd/Ctrl+F 查找、Cmd/Ctrl+P 原生打印等
     if (e.key==='f'||e.key==='F') tgFs();
     if (e.key==='p'||e.key==='P') window.print();
   }, true);
