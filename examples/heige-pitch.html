@@ -349,14 +349,31 @@
   }
 
   // ---- localStorage save / restore ----
+  function stripEditingAttributes(root){
+    [].slice.call(root.querySelectorAll('[data-he-field]')).forEach(function(node){
+      node.removeAttribute('contenteditable'); node.removeAttribute('spellcheck');
+    });
+  }
+  function serializedRoot(root){
+    var clone = root.cloneNode(true);
+    stripEditingAttributes(clone);
+    return clone.innerHTML;
+  }
   function save(){
-    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){return r.innerHTML;}))); } catch(e){}
+    try { localStorage.setItem(KEY, JSON.stringify(roots.map(serializedRoot))); } catch(e){}
     status('已保存');
+  }
+  function flushSave(){
+    if(!saveTimer) return;
+    clearTimeout(saveTimer); saveTimer=null; save();
   }
   function restore(){
     try {
       var data = JSON.parse(localStorage.getItem(KEY));
-      if (data && data.length === roots.length){ data.forEach(function(h,i){ roots[i].innerHTML = h; }); return true; }
+      if (data && data.length === roots.length){
+        data.forEach(function(h,i){ roots[i].innerHTML = h; stripEditingAttributes(roots[i]); });
+        return true;
+      }
     } catch(e){}
     return false;
   }
@@ -453,7 +470,13 @@
   markFields();
   buildToolbar();
   roots.forEach(function(r){
-    r.addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer=setTimeout(save, 400); });
+    r.addEventListener('input', function(){
+      clearTimeout(saveTimer); saveTimer=setTimeout(function(){ saveTimer=null; save(); }, 400);
+    });
+  });
+  window.addEventListener('pagehide', flushSave);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flushSave();
   });
 })();
 </script>

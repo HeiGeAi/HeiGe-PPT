@@ -8,7 +8,7 @@
   },
   "scripts": {
     "convert": "node html2pptx.js",
-    "test": "node --test test/html2pptx.test.js",
+    "test": "node --test test/html2pptx.test.js test/editor-persistence.test.js",
     "test:release": "node --test test/release-fixtures.test.js"
   },
   "engines": {
