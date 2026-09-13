@@ -183,6 +183,16 @@ async function extract(htmlPath) {
       const s = cs(el);
       return r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0.05;
     };
+    // 祖先链可见性：opacity 不继承（父级 opacity:0 时子元素 computed 仍是 1），
+    // 沿父链逐层判定，动画 deck 入场前的 opacity:0 子树不得进 PPT。
+    const visibleDeep = (el, r) => {
+      if (!visible(el, r)) return false;
+      for (let a = el.parentElement; a && a !== slide; a = a.parentElement) {
+        const s = cs(a);
+        if (s.display === "none" || s.visibility === "hidden" || +s.opacity <= 0.05) return false;
+      }
+      return true;
+    };
     const hasDirectText = (el) => {
       for (const n of el.childNodes) if (n.nodeType === 3 && n.textContent.trim() !== "") return true;
       return false;
@@ -213,7 +223,7 @@ async function extract(htmlPath) {
           if (er.width && er.height && (gr.width * gr.height) / (er.width * er.height) > 0.8) return;
         }
         const r = rectOf(el);
-        if (!visible(el, r.raw)) return;
+        if (!visibleDeep(el, r.raw)) return;
         const s = cs(el);
         const bg = s.backgroundColor;
         const hasBg = bg && !/rgba?\(0, 0, 0, 0\)|transparent/.test(bg);
@@ -300,11 +310,11 @@ async function extract(htmlPath) {
         if (hasBlockChild(el)) {
           // 混合块：只把它自己的直接文字 + 内联段量成一框，block 子元素留给后续遍历各自成框
           const dr = directRect(el);
-          if (dr && dr.w > 1 && dr.h > 1) pushText(el, dr);
+          if (dr && dr.w > 1 && dr.h > 1 && visibleDeep(el, dr.raw)) pushText(el, dr);
           return;
         }
         const r = rectOf(el);
-        if (!visible(el, r.raw)) return;
+        if (!visibleDeep(el, r.raw)) return;
         // 自带底色/边框的文字元素（CTA 按钮、徽章、数据 chip）：先在同位置铺色块再叠文字，
         // 否则转出的 PPT 只剩一行悬空文字，彩色圆角块消失。
         const es = cs(el);

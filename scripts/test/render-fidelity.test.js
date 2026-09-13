@@ -45,6 +45,23 @@ async function slideXml(pptxPath, n = 1) {
   return entry.async("string");
 }
 
+test("content under an opacity:0 ancestor does not leak into the PPT", async () => {
+  const output = convert(`
+<div style="position:absolute;left:50px;top:50px;opacity:0">
+  <p style="font:32px Arial">GHOSTTEXT-DIRECT</p>
+  <div><span style="display:inline">GHOSTTEXT-MIXED</span><div style="display:block">block child</div></div>
+</div>
+<p style="position:absolute;left:50px;top:300px;font:32px Arial">VISIBLE-TEXT</p>`);
+  try {
+    const xml = await slideXml(output);
+    assert.ok(!xml.includes("GHOSTTEXT-DIRECT"), "opacity:0 祖先下的直排文字泄漏进 PPT");
+    assert.ok(!xml.includes("GHOSTTEXT-MIXED"), "opacity:0 祖先下的混合块文字泄漏进 PPT");
+    assert.match(xml, /VISIBLE-TEXT/, "正常可见文字被误伤");
+  } finally {
+    fs.rmSync(path.dirname(output), { recursive: true, force: true });
+  }
+});
+
 test("border-bottom divider keeps its color and survives at 4px", async () => {
   const output = convert(`
 <div style="position:absolute;left:50px;top:50px;width:300px;border-bottom:2px solid #00FF00"></div>
