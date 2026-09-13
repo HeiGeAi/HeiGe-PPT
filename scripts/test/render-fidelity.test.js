@@ -45,6 +45,19 @@ async function slideXml(pptxPath, n = 1) {
   return entry.async("string");
 }
 
+test("border-bottom divider keeps its color and survives at 4px", async () => {
+  const output = convert(`
+<div style="position:absolute;left:50px;top:50px;width:300px;border-bottom:2px solid #00FF00"></div>
+<div style="position:absolute;left:50px;top:120px;width:300px;height:4px;border-bottom:4px solid #0000FF"></div>`);
+  try {
+    const xml = await slideXml(output);
+    assert.match(xml, /00FF00/, "2px border-bottom divider color lost");
+    assert.match(xml, /0000FF/, "4px border-bottom divider vanished entirely");
+  } finally {
+    fs.rmSync(path.dirname(output), { recursive: true, force: true });
+  }
+});
+
 test("rgba alpha is preserved as OOXML alpha instead of dropping to opaque", async () => {
   const output = convert(`
 <div style="position:absolute;left:50px;top:50px;width:200px;height:100px;background:rgba(255,0,0,0.3)"></div>`);

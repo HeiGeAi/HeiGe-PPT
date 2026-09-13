@@ -169,6 +169,16 @@ async function extract(htmlPath) {
     const sx = 1280 / sr.width, sy = 720 / sr.height;
 
     const cs = (el) => getComputedStyle(el);
+    // 四边取最宽的一条边框及其颜色：分割线常用单边 border-bottom/border-top，
+    // 只读 borderTop 会把颜色回退成 currentColor、或整条漏检。
+    const maxBorder = (s) => {
+      let best = { w: 0, color: null };
+      for (const side of ["Top", "Right", "Bottom", "Left"]) {
+        const w = parseFloat(s["border" + side + "Width"]) || 0;
+        if (w > best.w) best = { w, color: s["border" + side + "Color"] };
+      }
+      return best;
+    };
     const visible = (el, r) => {
       const s = cs(el);
       return r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0.05;
@@ -207,16 +217,16 @@ async function extract(htmlPath) {
         const s = cs(el);
         const bg = s.backgroundColor;
         const hasBg = bg && !/rgba?\(0, 0, 0, 0\)|transparent/.test(bg);
-        const bw = parseFloat(s.borderTopWidth) || 0;
-        const hasBorder = bw > 0 && !/rgba?\(0, 0, 0, 0\)/.test(s.borderTopColor);
-        const thinLine = (r.h <= 3 && r.w > 6) || (r.w <= 3 && r.h > 6);  // 细分割线
+        const bd = maxBorder(s);
+        const hasBorder = bd.w > 0 && bd.color && !/rgba?\(0, 0, 0, 0\)/.test(bd.color);
+        const thinLine = (r.h <= 4 && r.w > 6) || (r.w <= 4 && r.h > 6);  // 细分割线
         if (!hasBg && !hasBorder && !thinLine) return;
         out.shapes.push({
           x: r.x, y: r.y, w: r.w, h: r.h,
           fill: hasBg ? bg : null,
-          border: hasBorder ? { color: s.borderTopColor, w: bw } : null,
-          line: (!hasBg && !hasBorder && thinLine) ? (r.h <= 3 ? "h" : "v") : null,
-          lineColor: bg && !/rgba?\(0, 0, 0, 0\)/.test(bg) ? bg : s.borderTopColor,
+          border: hasBorder ? { color: bd.color, w: bd.w } : null,
+          line: (!hasBg && !hasBorder && thinLine) ? (r.h <= 4 ? "h" : "v") : null,
+          lineColor: bg && !/rgba?\(0, 0, 0, 0\)/.test(bg) ? bg : (bd.color || s.borderTopColor),
         });
       });
 
@@ -299,11 +309,11 @@ async function extract(htmlPath) {
         // 否则转出的 PPT 只剩一行悬空文字，彩色圆角块消失。
         const es = cs(el);
         const eHasBg = es.backgroundColor && !/rgba?\(0, 0, 0, 0\)|transparent/.test(es.backgroundColor);
-        const ebw = parseFloat(es.borderTopWidth) || 0;
-        const eHasBorder = ebw > 0 && !/rgba?\(0, 0, 0, 0\)/.test(es.borderTopColor);
+        const ebd = maxBorder(es);
+        const eHasBorder = ebd.w > 0 && ebd.color && !/rgba?\(0, 0, 0, 0\)/.test(ebd.color);
         if (eHasBg || eHasBorder) out.shapes.push({ x: r.x, y: r.y, w: r.w, h: r.h,
           fill: eHasBg ? es.backgroundColor : null,
-          border: eHasBorder ? { color: es.borderTopColor, w: ebw } : null, line: null, lineColor: null });
+          border: eHasBorder ? { color: ebd.color, w: ebd.w } : null, line: null, lineColor: null });
         pushText(el, r);
       });
     return out;
