@@ -203,7 +203,7 @@ async function extract(htmlPath) {
       return { x: (r.left - sr.left) * sx, y: (r.top - sr.top) * sy, w: r.width * sx, h: r.height * sy, raw: r };
     };
 
-    const out = { texts: [], shapes: [], svgs: [], bg: null };
+    const out = { texts: [], shapes: [], svgs: [], bg: null, dedupSkipped: 0 };
     // 背景色：.slide 自身透明时回退取 .stage / body。深色 deck 常把底色画在舞台或 body 上，
     // 只读 .slide 会拿到透明 → PPT 落默认白底 → 浅色正文整页看不见。
     const transp = (c) => !c || /rgba?\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
@@ -295,8 +295,10 @@ async function extract(htmlPath) {
           }
         });
         if (!runs.some(x => x.text)) return;
-        const key = Math.round(r.x) + ":" + Math.round(r.y) + ":" + runs.map(x => x.text || "↵").join("").trim().slice(0, 24);
-        if (seen.has(key)) return; seen.add(key);
+        // 去重 key 用完整文本（不用前 24 字截断）：同位置且全文相同才判重，
+        // 截断版会把「前缀相同、后半不同」的两个框误杀一个。
+        const key = Math.round(r.x) + ":" + Math.round(r.y) + ":" + runs.map(x => x.text || "↵").join("").trim();
+        if (seen.has(key)) { out.dedupSkipped++; return; } seen.add(key);
         const lines = runs.filter(x => x.br).length + 1;  // <br> 行数
         out.texts.push({
           x: r.x, y: r.y, w: r.w, h: r.h, runs, lines,
@@ -355,6 +357,12 @@ async function extract(htmlPath) {
       }
     }
     slidesData.push(sd);
+  }
+
+  // 文本去重可观测：静默丢弃会让叠层标题/图例无声消失，至少给人工确认留线索。
+  const dedupSkipped = slidesData.reduce((n, sd) => n + (sd.dedupSkipped || 0), 0);
+  if (dedupSkipped > 0) {
+    console.warn(`⚠ 提示：有 ${dedupSkipped} 个文本框因「同位置同文本」被去重跳过，请人工确认是否有叠层内容被丢弃。`);
   }
 
   return slidesData;

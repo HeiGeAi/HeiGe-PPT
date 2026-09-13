@@ -107,6 +107,30 @@ test("text boxes are clamped inside the slide bounds", async () => {
   }
 });
 
+test("same-position texts sharing a 24-char prefix are both kept, and true duplicates warn", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "heige-ppt-dedup-"));
+  try {
+    const deck = path.join(tmp, "deck.html");
+    const output = path.join(tmp, "deck.pptx");
+    // 两个元素同位置、前 24 字符相同、尾部不同：旧 key 会误杀后者。
+    fs.writeFileSync(deck, DECK_HEAD + `
+<p style="position:absolute;left:50px;top:50px;font:16px Arial">SHARED-PREFIX-ABCDEFGHIJK-tail-ONE</p>
+<p style="position:absolute;left:50px;top:50px;font:16px Arial">SHARED-PREFIX-ABCDEFGHIJK-tail-TWO</p>
+<p style="position:absolute;left:50px;top:200px;font:16px Arial">EXACT-DUPLICATE</p>
+<p style="position:absolute;left:50px;top:200px;font:16px Arial">EXACT-DUPLICATE</p>` + DECK_TAIL);
+    const converted = spawnSync(process.execPath, [CONVERTER, deck, output], {
+      cwd: SCRIPTS, encoding: "utf8", timeout: 30_000,
+    });
+    assert.equal(converted.status, 0, converted.stdout + converted.stderr);
+    const xml = await slideXml(output);
+    assert.match(xml, /tail-ONE/, "first same-prefix text missing");
+    assert.match(xml, /tail-TWO/, "same-prefix text silently dropped by weak dedup key");
+    assert.match(converted.stderr, /去重跳过/, "dedup drop was not observable (no warning printed)");
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("rgba alpha is preserved as OOXML alpha instead of dropping to opaque", async () => {
   const output = convert(`
 <div style="position:absolute;left:50px;top:50px;width:200px;height:100px;background:rgba(255,0,0,0.3)"></div>`);
