@@ -288,7 +288,9 @@ async function extract(htmlPath) {
           } else if (n.nodeType === 1 && /^(inline|inline-block|inline-flex)$/.test(cs(n).display)) {
             const ss = getComputedStyle(n);
             const t = n.textContent.replace(/\s+/g, " ");
-            if (t.trim()) { runs.push({ text: t, color: ss.color, bold: +ss.fontWeight >= 600, italic: ss.fontStyle === "italic" });
+            // 记录内联 run 自身字号：大数字+小单位混排时，build 按 run 各自设 fontSize，
+            // 否则整框压平成父级字号，视觉锤变形。
+            if (t.trim()) { runs.push({ text: t, color: ss.color, bold: +ss.fontWeight >= 600, italic: ss.fontStyle === "italic", size: parseFloat(ss.fontSize) });
               n.setAttribute("data-he-consumed", "1"); }   // 标记：已并入父块，勿再单独成框
           }
         });
@@ -417,6 +419,8 @@ function build(slidesData, outPath) {
             color: rgbToHex(r.color) || (isLightish(bgHex) ? "222B28" : "F4EFE6"),
             transparency: transparencyOf(r.color),
             bold: r.bold, italic: r.italic, breakLine: false,
+            // run 级字号（内联 <span> 等自带字号时）覆盖框级字号
+            ...(r.size ? { fontSize: Math.max(7, +(PT(r.size) * 0.92).toFixed(1)) } : {}),
           },
         });
       });

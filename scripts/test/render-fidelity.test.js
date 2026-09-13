@@ -75,6 +75,20 @@ test("border-bottom divider keeps its color and survives at 4px", async () => {
   }
 });
 
+test("inline run keeps its own fontSize instead of being flattened to the parent size", async () => {
+  const output = convert(`
+<h1 style="position:absolute;left:50px;top:50px;font:40px Arial">BIG<span style="font-size:16px">SMALL-UNIT</span></h1>`);
+  try {
+    const xml = await slideXml(output);
+    // 40px → 27.6pt → sz=2760；16px → 11.0pt → sz=1100。压平的旧行为只剩 2760 一个字号。
+    assert.match(xml, /sz="2760"/, "parent 40px run missing");
+    assert.match(xml, /sz="1100"/, "inline 16px run was flattened to the parent font size");
+    assert.match(xml, /SMALL-UNIT/, "inline run text missing");
+  } finally {
+    fs.rmSync(path.dirname(output), { recursive: true, force: true });
+  }
+});
+
 test("rgba alpha is preserved as OOXML alpha instead of dropping to opaque", async () => {
   const output = convert(`
 <div style="position:absolute;left:50px;top:50px;width:200px;height:100px;background:rgba(255,0,0,0.3)"></div>`);
