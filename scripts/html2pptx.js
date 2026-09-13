@@ -14,7 +14,10 @@
  *     宁可诚实降级，不硬转出一个崩的图。
  *
  * 用法：
- *   node html2pptx.js <deck.html> [out.pptx]
+ *   node html2pptx.js <deck.html> [out.pptx] [--offline]
+ *
+ *   --offline  离线模式：拦截并 abort 一切非 file:// 网络请求。
+ *              转换来源不明的第三方 deck 时务必开启，防页面脚本外联。
  *
  * 依赖：pptxgenjs、playwright-core（用系统已装的 Chromium / Chrome）。
  */
@@ -129,7 +132,7 @@ function mapFont(family) {
   return "微软雅黑";
 }
 
-async function extract(htmlPath) {
+async function extract(htmlPath, { offline = false } = {}) {
   const { chromium } = require("playwright-core");
   const { pathToFileURL } = require("url");
   const exe = findBrowser(chromium);
@@ -137,6 +140,15 @@ async function extract(htmlPath) {
   const browser = await chromium.launch({ executablePath: exe, headless: true });
   try {
   const page = await browser.newPage({ viewport: { width: STAGE_W, height: STAGE_H }, deviceScaleFactor: 2 });
+  if (offline) {
+    // 离线模式：只放行 file:/data:/blob:，其余请求一律 abort。
+    // 不可信 deck 的内嵌脚本可能在转换窗口期发起网络请求，批量转换第三方 deck 时必须开。
+    await page.route("**/*", (route) => {
+      const u = route.request().url();
+      if (/^(file|data|blob):/.test(u)) return route.continue();
+      return route.abort();
+    });
+  }
   // DOM 可用就进入转换，远程 stylesheet / webfont 不得阻塞整份 deck。
   // 导航本身也显式封顶，避免浏览器默认 30s 超时重新引入长时间挂起。
   await page.goto(pathToFileURL(htmlPath).href, {
@@ -477,14 +489,16 @@ function build(slidesData, outPath) {
 }
 
 async function main(argv = process.argv.slice(2)) {
-  const [inArg, outArg] = argv;
-  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx]"); return 1; }
+  const offline = argv.includes("--offline");
+  const [inArg, outArg] = argv.filter((a) => a !== "--offline");
+  if (!inArg) { console.error("用法: node html2pptx.js <deck.html> [out.pptx] [--offline]"); return 1; }
   const htmlPath = path.resolve(inArg);
   if (!fs.existsSync(htmlPath)) { console.error("找不到文件:", htmlPath); return 1; }
   const outPath = path.resolve(outArg || htmlPath.replace(/\.html?$/i, "") + ".pptx");
 
   console.log("→ 读取 deck 渲染几何 …");
-  const data = await extract(htmlPath);
+  const data = await extract(htmlPath, { offline });
+  if (offline) console.log("→ 离线模式：已拦截全部非 file:// 网络请求");
   console.log(`→ 解析到 ${data.length} 页，开始生成可编辑 PPTX …`);
   const { ok: svgN, failed: svgF } = await build(data, outPath);
   console.log("✓ 已生成:", outPath);

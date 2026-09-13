@@ -121,6 +121,46 @@ html,body{margin:0;width:100%;height:100%}
   }
 });
 
+test("--offline aborts every non-file request from an untrusted deck", async () => {
+  let hits = 0;
+  const server = http.createServer((request, response) => {
+    hits++;
+    response.writeHead(200, { "content-type": "text/css" });
+    response.end("/* should never be served */");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "heige-ppt-offline-"));
+  try {
+    const { port } = server.address();
+    const deck = path.join(tmp, "untrusted.html");
+    const output = path.join(tmp, "untrusted.pptx");
+    fs.writeFileSync(deck, `<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="http://127.0.0.1:${port}/phone-home.css">
+<style>
+html,body{margin:0;width:100%;height:100%}
+.stage{position:relative;width:1280px;height:720px;background:#fff}
+.slide{position:absolute;inset:0;background:#fff;color:#111}
+</style></head><body><main class="stage"><section class="slide">
+<h1 style="margin:100px;font:700 64px Arial">Offline deck</h1>
+<script>fetch("http://127.0.0.1:${port}/beacon").catch(()=>{})</script>
+</section></main></body></html>`);
+
+    const converted = await runProcess(process.execPath, [CONVERTER, deck, output, "--offline"], {
+      cwd: ROOT,
+      env: process.env,
+      timeout: 15_000,
+    });
+    assert.equal(converted.status, 0, converted.stdout + converted.stderr);
+    assert.ok(fs.existsSync(output), "converter did not create a PPTX in offline mode");
+    assert.equal(hits, 0, "offline mode leaked a network request to the remote server");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test("does not wait for a slow remote stylesheet before converting", async () => {
   const server = http.createServer((request, response) => {
     response.writeHead(200, { "content-type": "text/css" });

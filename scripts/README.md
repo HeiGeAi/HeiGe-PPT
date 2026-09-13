@@ -8,10 +8,12 @@ HeiGe-PPT 的双格式交付转换器：把一份 HeiGe-PPT 单文件 HTML deck 
 
 ```bash
 npm install                          # 首次：装 pptxgenjs + playwright-core
-node html2pptx.js <deck.html> [out.pptx]
+node html2pptx.js <deck.html> [out.pptx] [--offline]
 ```
 
 不传第二个参数时，输出到与 HTML 同名的 `.pptx`。
+
+`--offline` 离线模式：拦截并 abort 一切非 `file://` 网络请求（远程样式表、webfont、页面脚本外联全部断掉）。**转换来源不明的第三方 deck 时务必开启**：转换在本机 Chromium 里以 `file://` 加载 HTML，页面内嵌脚本会在转换窗口期运行，离线模式断了它的外网通道。自己产出的 deck 不需要开。
 
 ## 它怎么工作
 
