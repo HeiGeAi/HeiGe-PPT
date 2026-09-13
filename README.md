@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.4.1-ff4d12.svg)
+![Version](https://img.shields.io/badge/version-1.4.2-ff4d12.svg)
 ![Claude](https://img.shields.io/badge/Claude-Skill-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -224,6 +224,16 @@ HeiGe-PPT/
 ## 版本历史 Version History
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+### v1.4.2 (2026-09-13)
+- 🔧 转换器保真修复一组：分割线边框四边取 max（border-bottom 不再变色/消失）、rgba alpha 保留（不再全转不透明）、opacity:0 祖先链内容不再漏进 PPT、内联 run 字号不再被压平、文本框 clamp 到页面边界、去重误杀改完整文本判重并 warn 可观测
+- 🛡 新增 --offline 离线模式：拦截不可信 deck 的一切非 file:// 网络请求
+- ✅ 每条修复带最小 fixture 回归测试；CI 的 npm audit 调到 critical 级别恢复信号意义
+
+### v1.4.1 (2026-07-09)
+- 🛠 全仓库审查加固：可编辑层自动保存不再把 contenteditable 写进 localStorage、下载 HTML 剥掉演示层覆盖物、编辑态点击不再误翻页
+- 🎤 现场演示层：lightbox 打开拦住全部翻页键、F/P 热键加修饰键守卫、复制失败如实提示
+- 📤 转换器：深色 deck 背景色回退链 slide→stage→body、Google Fonts 挂起不再拖满超时、带小图标容器不丢底色、SVG 截图失败留占位框提示
 
 ### v1.4.0 (2026-07-02)
 - 🎤 现场演示层 `references/live-show-layer.md`：全屏按钮 + F 键、示例截图点击放大 lightbox（打开时接管键盘不翻页）、观众一键复制提示词（带「已复制」反馈）、现场跳转大按钮；与可编辑层共存，自动挂进同一条工具栏。来自一次 105 页线下培训 deck 的真实交付沉淀

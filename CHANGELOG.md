@@ -2,6 +2,24 @@
 
 本项目所有重要变更记录于此。
 
+## [1.4.2] - 2026-09-13
+
+第二轮公开审查后的转换器加固，每条修复都带最小 fixture 回归测试（scripts/test/render-fidelity.test.js）。
+
+### 修复 · 转换器（scripts/html2pptx.js）
+- **分割线边框检测改四边取 max**。此前只读 borderTop：border-bottom 分割线颜色回退成 currentColor 变色，4px 分割线整条消失。
+- **rgba alpha 通道保留**。此前半透明色全部转成全不透明；现填充/线条/文字色接 pptxgenjs transparency，同时兼容 CSS Color 4 空格语法。
+- **opacity:0 祖先链下的内容不再漏进 PPT**。opacity 不继承，旧检查只看元素自身；现沿父链累积判定，三条文字/形状提取路径统一复用。
+- **内联 run 保留自身字号**。此前 40px 标题内嵌 16px <span> 被整框压平成父级字号，大数字+小单位的视觉锤变形。
+- **文本框 x/y/w/h clamp 到页面边界内**。此前贴右缘的框加余量后超出页宽，内容挂到幻灯片外。
+- **文本去重 key 改用完整文本 + 丢弃时 console.warn 计数**。此前「同位置 + 前 24 字相同」的两个不同元素会被静默误杀。
+
+### 新增 · 转换器
+- **--offline 离线模式**：page.route 拦截一切非 file:// 请求直接 abort。转换来源不明的第三方 deck 时开启，防页面内嵌脚本外联。
+
+### 修复 · CI
+- **npm audit 提到 --audit-level=critical**。pptxgenjs 依赖的 image-size 有 2 个 high DoS 漏洞且上游无修复版，旧配置使 CI 必红；风险边界已写进 scripts/README，上游修复后随依赖升级消化。
+
 ## [1.4.1] - 2026-07-09
 
 一次全仓库审查后的加固。多 agent 审出、主控逐条对着真实文件核实、html2pptx 的修复用真实 deck 跑通验证（深色 + 浅色各一份）。
