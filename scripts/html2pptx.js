@@ -77,15 +77,40 @@ function findBrowser(chromium) {
 }
 
 // ---------- 颜色工具 ----------
-function rgbToHex(c) {
+// 解析 rgb()/rgba() 颜色，兼容传统逗号语法与 CSS Color 4 空格语法（rgb(255 0 0 / 50%)）。
+// 返回 { hex, alpha }；alpha < 0.05 视为无色返回 null。
+function parseColor(c) {
   if (!c) return null;
-  const m = c.match(/rgba?\(([^)]+)\)/);
+  const m = String(c).match(/rgba?\(([^)]+)\)/i);
   if (!m) return null;
-  const p = m[1].split(",").map(s => parseFloat(s.trim()));
-  const a = p[3] === undefined ? 1 : p[3];
-  if (a === 0) return null;                            // 全透明 → 当作无色
-  const hex = p.slice(0, 3).map(n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0")).join("");
-  return hex.toUpperCase();
+  const body = m[1].trim();
+  let rgbParts, a = 1;
+  if (body.includes(",")) {                          // 传统逗号语法 rgb(r, g, b[, a])
+    const parts = body.split(",").map(s => parseFloat(s.trim()));
+    rgbParts = parts.slice(0, 3);
+    if (parts.length > 3 && !Number.isNaN(parts[3])) a = parts[3];
+  } else {                                           // CSS Color 4 空格语法 rgb(r g b / a)
+    const [rgbStr, aStr] = body.split("/");
+    rgbParts = rgbStr.trim().split(/\s+/).map(s => parseFloat(s));
+    if (aStr !== undefined) {
+      const t = aStr.trim();
+      a = t.endsWith("%") ? parseFloat(t) / 100 : parseFloat(t);
+    }
+  }
+  if (rgbParts.length < 3 || rgbParts.some(Number.isNaN) || Number.isNaN(a)) return null;
+  a = Math.max(0, Math.min(1, a));
+  if (a < 0.05) return null;                         // 近全透明 → 当作无色
+  const hex = rgbParts.map(n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0")).join("").toUpperCase();
+  return { hex, alpha: a };
+}
+function rgbToHex(c) {
+  const p = parseColor(c);
+  return p ? p.hex : null;
+}
+// pptxgenjs 的 transparency 语义：0 = 不透明，100 = 全透明。
+function transparencyOf(c) {
+  const p = parseColor(c);
+  return p && p.alpha < 1 ? Math.round(100 * (1 - p.alpha)) : 0;
 }
 const isLightish = (hex) => {
   if (!hex) return true;
@@ -333,14 +358,15 @@ function build(slidesData, outPath) {
     sd.shapes.forEach((sp) => {
       if (sp.line) {
         const col = rgbToHex(sp.lineColor) || "B6AB95";
-        if (sp.line === "h") s.addShape(pres.shapes.LINE, { x: px(sp.x), y: px(sp.y + sp.h / 2), w: px(sp.w), h: 0, line: { color: col, width: Math.max(0.5, sp.h * 0.75) } });
-        else s.addShape(pres.shapes.LINE, { x: px(sp.x + sp.w / 2), y: px(sp.y), w: 0, h: px(sp.h), line: { color: col, width: Math.max(0.5, sp.w * 0.75) } });
+        const lt = transparencyOf(sp.lineColor);
+        if (sp.line === "h") s.addShape(pres.shapes.LINE, { x: px(sp.x), y: px(sp.y + sp.h / 2), w: px(sp.w), h: 0, line: { color: col, width: Math.max(0.5, sp.h * 0.75), transparency: lt } });
+        else s.addShape(pres.shapes.LINE, { x: px(sp.x + sp.w / 2), y: px(sp.y), w: 0, h: px(sp.h), line: { color: col, width: Math.max(0.5, sp.w * 0.75), transparency: lt } });
         return;
       }
       const fill = rgbToHex(sp.fill);
       const opt = { x: px(sp.x), y: px(sp.y), w: px(sp.w), h: px(sp.h) };
-      opt.fill = fill ? { color: fill } : { type: "none" };
-      opt.line = sp.border ? { color: rgbToHex(sp.border.color) || "999999", width: Math.max(0.5, sp.border.w * 0.75) } : { type: "none" };
+      opt.fill = fill ? { color: fill, transparency: transparencyOf(sp.fill) } : { type: "none" };
+      opt.line = sp.border ? { color: rgbToHex(sp.border.color) || "999999", width: Math.max(0.5, sp.border.w * 0.75), transparency: transparencyOf(sp.border.color) } : { type: "none" };
       s.addShape(pres.shapes.RECTANGLE, opt);
     });
 
@@ -369,6 +395,7 @@ function build(slidesData, outPath) {
           text: r.text,
           options: {
             color: rgbToHex(r.color) || (isLightish(bgHex) ? "222B28" : "F4EFE6"),
+            transparency: transparencyOf(r.color),
             bold: r.bold, italic: r.italic, breakLine: false,
           },
         });
