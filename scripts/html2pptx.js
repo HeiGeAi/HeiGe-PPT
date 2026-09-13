@@ -447,8 +447,13 @@ function build(slidesData, outPath) {
       // 宽度：用 HTML 真实宽 + 小余量，让 PPT 在原始宽度内换行，不强行拉宽（拉宽会溢出窄卡、串到隔壁）。
       const boxW = px(t.w) + (lines > 1 ? 0.08 : 0.22);
       const boxX = t.align === "right" ? px(t.x) - 0.06 : px(t.x) - 0.04;
+      // 边界 clamp：贴右缘/下缘的框加上余量后会超出页宽/页高，内容挂到幻灯片外。
+      const cx0 = Math.max(0, boxX);
+      const cy0 = Math.max(0, ytop);
+      const cw = Math.max(0.1, Math.min(boxW, IN_W - cx0));
+      const ch = Math.max(0.1, Math.min(boxH, IN_H - cy0));
       s.addText(runs, {
-        x: boxX, y: ytop, w: boxW, h: boxH,
+        x: cx0, y: cy0, w: cw, h: ch,
         fontFace: mapFont(t.font),
         fontSize: sizePt,
         align: t.align,

@@ -89,6 +89,24 @@ test("inline run keeps its own fontSize instead of being flattened to the parent
   }
 });
 
+test("text boxes are clamped inside the slide bounds", async () => {
+  const output = convert(`
+<p style="position:absolute;left:1150px;top:60px;font:20px Arial;white-space:nowrap">EDGE-HUGGING-TEXT-RIGHT</p>`);
+  try {
+    const xml = await slideXml(output);
+    assert.match(xml, /EDGE-HUGGING-TEXT-RIGHT/, "edge text missing");
+    // 13.333in 页宽 = 12192000 EMU。每个形状的 off.x + ext.cx 都不得超出。
+    const pairs = [...xml.matchAll(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/g)];
+    assert.ok(pairs.length > 0, "no shapes found in slide XML");
+    for (const p of pairs) {
+      assert.ok(+p[1] + +p[3] <= 12192000, `text box overflows slide width: x=${p[1]} cx=${p[3]}`);
+      assert.ok(+p[2] + +p[4] <= 6858000, `text box overflows slide height: y=${p[2]} cy=${p[4]}`);
+    }
+  } finally {
+    fs.rmSync(path.dirname(output), { recursive: true, force: true });
+  }
+});
+
 test("rgba alpha is preserved as OOXML alpha instead of dropping to opaque", async () => {
   const output = convert(`
 <div style="position:absolute;left:50px;top:50px;width:200px;height:100px;background:rgba(255,0,0,0.3)"></div>`);
