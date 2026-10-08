@@ -39,3 +39,14 @@ SVG 框架图、CSS 渐变 / 纹理这类复杂图形，PPT 原生画不出来�
 pptxgenjs 依赖链里的 image-size 有 2 个 high severity DoS 漏洞（ICNS / JXL / HEIF 解析死循环，GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq），上游暂无修复版。本工具嵌入的图来自 playwright 对自家 deck 的截图，不解析外部不可信图片，实际可利用性低；CI 的 npm audit 已调到 `--audit-level=critical`，上游出修复版后随依赖升级消化。**勿用本工具转换内嵌不可信图片的来源不明 deck。**
 
 没有任何浏览器时，跑一次 `npx playwright install chromium` 即可。
+
+
+### CSS gradient / texture fallback
+
+When a visible slide, its stage/body background, or a visible element (including
+::before/::after) uses background-image, the converter captures the complete
+graphical layer at the original stage size. Native text stays editable; the
+background graphics become one PNG to preserve their paint order. The CLI reports
+this raster downgrade. Screenshot failures stop conversion with a slide-numbered
+error instead of silently omitting the paint. Complex text clipping/masks and
+pseudo-element text are not guaranteed editable; inspect the generated slide.
