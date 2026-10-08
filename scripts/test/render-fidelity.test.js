@@ -141,3 +141,49 @@ test("rgba alpha is preserved as OOXML alpha instead of dropping to opaque", asy
     fs.rmSync(path.dirname(output), { recursive: true, force: true });
   }
 });
+
+test("CSS gradient and pseudo texture rasterize without duplicating editable text", async () => {
+  const { extract, build, findBrowser } = require("../html2pptx");
+  const { chromium } = require("playwright-core");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ppt-gradient-"));
+  let browser;
+  try {
+    const html = path.join(tmp, "gradient.html");
+    fs.writeFileSync(html, DECK_HEAD + `
+      <style>.texture:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,#00ff00 0 5px,#000000 5px 10px)}</style>
+      <div style="position:absolute;left:100px;top:100px;width:200px;height:200px;background:linear-gradient(90deg,red,blue)"></div>
+      <div class="texture" style="position:absolute;left:400px;top:100px;width:200px;height:200px"></div>
+      <p style="position:absolute;left:100px;top:400px;font:32px Arial">EDITABLE-GRADIENT-TEXT</p>
+      <div style="position:absolute;left:700px;top:100px;font:32px Arial">Heading
+        <button style="display:block;position:absolute;left:0;top:60px;width:250px;height:50px;padding:0;border:0;background:white;color:black;font:24px Arial">KEEP-BUTTON</button>
+      </div>
+    ` + DECK_TAIL);
+    const data = await extract(html, { offline: true });
+    assert.ok(data[0].backgroundRaster);
+    assert.equal(data[0].shapes.length, 0);
+    assert.ok(data[0].texts.some(t => t.runs.some(r => r.text?.includes("EDITABLE-GRADIENT-TEXT"))));
+    browser = await chromium.launch({ executablePath: findBrowser(chromium), headless: true });
+    const page = await browser.newPage();
+    const samples = await page.evaluate(async data => {
+      const img = new Image(); img.src = data; await img.decode();
+      const canvas = document.createElement("canvas");canvas.width=1280;canvas.height=720;
+      const ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,1280,720);
+      const button = ctx.getImageData(700,160,250,50).data;
+      let darkPixels = 0;
+      for (let i=0;i<button.length;i+=4) if (button[i]<100 && button[i+1]<100 && button[i+2]<100) darkPixels++;
+      return { colors: [110,290].map(x => [...ctx.getImageData(x,200,1,1).data]), darkPixels };
+    }, data[0].backgroundRaster);
+    assert.ok(samples.colors[0][0] > samples.colors[0][2], "left gradient sample should be red");
+    assert.ok(samples.colors[1][2] > samples.colors[1][0], "right gradient sample should be blue");
+    assert.ok(samples.darkPixels > 20, "unconverted block button glyphs must remain in raster");
+    const output=path.join(tmp,"out.pptx");
+    const result=await build(data,output);
+    assert.equal(result.ok,1);
+    const xml=await slideXml(output);
+    assert.match(xml,/<p:pic>/);
+    assert.match(xml,/EDITABLE-GRADIENT-TEXT/);
+  } finally {
+    if(browser) await browser.close();
+    fs.rmSync(tmp,{recursive:true,force:true});
+  }
+});
