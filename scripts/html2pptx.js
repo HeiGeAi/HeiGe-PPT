@@ -137,7 +137,7 @@ async function extract(htmlPath, { offline = false } = {}) {
   const { chromium } = require("playwright-core");
   const { pathToFileURL } = require("url");
   const exe = findBrowser(chromium);
-  if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或运行 npx playwright install chromium。");
+  if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或在 scripts 目录运行 npx --no-install playwright-core install chromium。");
   const browser = await chromium.launch({ executablePath: exe, headless: true });
   try {
   const page = await browser.newPage({ viewport: { width: STAGE_W, height: STAGE_H }, deviceScaleFactor: 2 });

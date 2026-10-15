@@ -7,7 +7,8 @@ HeiGe-PPT 的双格式交付转换器：把一份 HeiGe-PPT 单文件 HTML deck 
 ## 用法
 
 ```bash
-npm install                          # 首次：装 pptxgenjs + playwright-core
+npm ci                               # 首次：按锁文件装 pptxgenjs + playwright-core
+npx --no-install playwright-core install chromium  # 安装匹配当前依赖版本的浏览器
 node html2pptx.js <deck.html> [out.pptx] [--offline]
 ```
 
@@ -38,7 +39,7 @@ SVG 框架图、CSS 渐变 / 纹理这类复杂图形，PPT 原生画不出来�
 
 pptxgenjs 依赖链里的 image-size 有 2 个 high severity DoS 漏洞（ICNS / JXL / HEIF 解析死循环，GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq），上游暂无修复版。本工具嵌入的图来自 playwright 对自家 deck 的截图，不解析外部不可信图片，实际可利用性低；CI 的 npm audit 已调到 `--audit-level=critical`，上游出修复版后随依赖升级消化。**勿用本工具转换内嵌不可信图片的来源不明 deck。**
 
-没有任何浏览器时，跑一次 `npx playwright install chromium` 即可。
+安装或更新依赖后，在 `scripts` 目录运行 `npx --no-install playwright-core install chromium`，使用当前项目的 Playwright 版本安装对应 Chromium。测试或转换遇到浏览器关闭超时，也应先检查版本是否匹配。需要隔离下载目录时，在安装和运行命令中使用相同的 `PLAYWRIGHT_BROWSERS_PATH`。
 
 
 ### CSS gradient / texture fallback

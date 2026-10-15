@@ -182,6 +182,8 @@ test("CSS gradient and pseudo texture rasterize without duplicating editable tex
     const xml=await slideXml(output);
     assert.match(xml,/<p:pic>/);
     assert.match(xml,/EDITABLE-GRADIENT-TEXT/);
+    assert.match(xml,/typeface="微软雅黑"/, "Arial text must retain the sans-serif fallback in the real export");
+    assert.doesNotMatch(xml,/typeface="Georgia"/, "sans-serif must not become a serif font");
   } finally {
     if(browser) await browser.close();
     fs.rmSync(tmp,{recursive:true,force:true});
