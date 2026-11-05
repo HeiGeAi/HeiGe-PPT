@@ -1,6 +1,6 @@
 {
   "name": "heige-ppt-scripts",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "private": true,
   "description": "HeiGe-PPT 双格式交付转换器：把 HTML deck 转成可编辑 PPTX",
   "bin": {
@@ -8,8 +8,10 @@
   },
   "scripts": {
     "convert": "node html2pptx.js",
-    "test": "node --test test/html2pptx.test.js",
-    "test:release": "node --test test/release-fixtures.test.js"
+    "test": "node --test test/html2pptx.test.js test/presenter.test.js",
+    "test:release": "node --test test/release-fixtures.test.js",
+    "inject-presenter": "node inject-presenter.mjs",
+    "validate-presenter": "node validate-presenter-mode.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -200,7 +200,8 @@ HeiGe-PPT/
 │   ├── deck-production-spec.md     # 单文件幻灯片硬规格（生产铁律）
 │   ├── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
 │   ├── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
-│   └── live-show-layer.md          # 现场演示层（全屏 / 截图点击放大 / 一键复制提示词的 drop-in 代码）
+│   ├── live-show-layer.md          # 现场演示层（全屏 / 截图点击放大 / 一键复制提示词的 drop-in 代码）
+│   └── presenter-mode.md           # 演讲者层（演讲者屏备注 + 观众屏同步 + 激光圈选 + 计时的契约）
 ├── examples/                       # 同一套方法论 × 六种场景气质
 │   ├── heige-pitch.html            # 凶悍/工业 · 产品路演
 │   ├── product-keynote.html        # 科技/未来 · 发布会 keynote（赛博霓虹）
@@ -210,9 +211,13 @@ HeiGe-PPT/
 │   └── campus-talk.html            # 张扬/人文 · 技术分享
 ├── scripts/                        # 双格式交付转换器
 │   ├── html2pptx.js                # HTML deck → 可编辑 PPTX（读渲染几何映射成原生文本框）
+│   ├── inject-presenter.mjs        # 一条命令给 deck 装上演讲者层（幂等）
+│   ├── validate-presenter-mode.mjs # 静态校验演讲者层与备注
+│   ├── test/                       # CI 测试（转换器 + 注入器）
 │   ├── package.json
 │   └── README.md
 ├── assets/
+│   ├── presenter-layer.html        # 演讲者层 drop-in 片段（单文件零依赖）
 │   └── previews/                   # README 用的样例预览图（WebP）
 ├── LICENSE
 ├── CHANGELOG.md
@@ -225,6 +230,8 @@ HeiGe-PPT/
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
 
+### v1.5.0 (2026-11-06)
+演讲者层。演讲者屏看备注 + 下一页预览 + 计时 + 宫格，台下屏只显示当前页；带激光笔、圈选、观众屏黑屏/冻结、排练记录、三通道同步与断线恢复。`Shift+P` 进入，纯本地零依赖。
 ### v1.4.2 (2026-09-13)
 - 🔧 转换器保真修复一组：分割线边框四边取 max（border-bottom 不再变色/消失）、rgba alpha 保留（不再全转不透明）、opacity:0 祖先链内容不再漏进 PPT、内联 run 字号不再被压平、文本框 clamp 到页面边界、去重误杀改完整文本判重并 warn 可观测
 - 🛡 新增 --offline 离线模式：拦截不可信 deck 的一切非 file:// 网络请求

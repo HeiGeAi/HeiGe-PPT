@@ -39,3 +39,44 @@ SVG 框架图、CSS 渐变 / 纹理这类复杂图形，PPT 原生画不出来�
 pptxgenjs 依赖链里的 image-size 有 2 个 high severity DoS 漏洞（ICNS / JXL / HEIF 解析死循环，GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq），上游暂无修复版。本工具嵌入的图来自 playwright 对自家 deck 的截图，不解析外部不可信图片，实际可利用性低；CI 的 npm audit 已调到 `--audit-level=critical`，上游出修复版后随依赖升级消化。**勿用本工具转换内嵌不可信图片的来源不明 deck。**
 
 没有任何浏览器时，跑一次 `npx playwright install chromium` 即可。
+
+---
+
+# scripts/inject-presenter.mjs
+
+给一份 deck 装上演讲者层（演讲者屏看备注 + 观众屏同步）。契约见 `references/presenter-mode.md`。
+
+## 用法
+
+```bash
+node inject-presenter.mjs <deck.html>            # 装上 / 刷新
+node inject-presenter.mjs <deck.html> --dry-run  # 只看会改什么，不写盘
+```
+
+跑完要做一件事：打开 deck，补 `SPEAKER_NOTES` 里的 `purpose` / `talk` / `transition`。骨架会把 id 和标题对好，内容得人来写。
+
+## 它改什么
+
+1. 给每个 `<section class="slide">` 补 `data-slide-id` 和 `data-title`
+2. 没有备注就插一份 `SPEAKER_NOTES` 骨架，条数与 id 跟页面一一对齐
+3. 把 `assets/presenter-layer.html` 贴到 `</body>` 前（已装则整段替换）
+4. deck 装了可编辑层时，把它「下载 HTML」的清理选择器补上本层三个 id
+
+幂等：反复跑只刷新运行时片段，不会叠出第二份。
+
+## scripts/validate-presenter-mode.mjs
+
+静态校验：页面身份齐不齐、备注字段全不全、运行时片段装没装对、总时长有没有超标。
+
+```bash
+node validate-presenter-mode.mjs <deck.html> [--target-minutes 30] [--strict]
+```
+
+## 测试
+
+```bash
+node --test test/presenter.test.js                    # 注入器回归，5 条，不需要浏览器
+node test/e2e-presenter.mjs examples/darktech-keynote.html   # 浏览器端实测，要本机 Chrome
+```
+
+`e2e-presenter.mjs` 手动跑，不进 CI（它要开窗口、要弹窗权限）。它跑七项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、宫格选页、计时、退出恢复。

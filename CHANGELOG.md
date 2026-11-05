@@ -2,6 +2,40 @@
 
 本项目所有重要变更记录于此。
 
+## [1.5.0] - 2026-11-06
+
+演讲者层。把「一个人对着投影仪讲」拆成两块屏：演讲者屏看备注和下一页，台下屏只显示当前页。纯本地、零依赖、不需要账号，贴上就生效。
+
+### 新增
+- `references/presenter-mode.md`：演讲者层的契约文档。入口、快捷键、备注字段、两条安装路线、与现场演示层和可编辑层的共存规则、能力边界。
+- `assets/presenter-layer.html`：drop-in 片段本体，一段 `<style id="he-presenter-style">` + 一段 `<script>`，贴 `</body>` 前就能用。
+- `scripts/inject-presenter.mjs`：一条命令装层。补 `data-slide-id` / `data-title`、插 `SPEAKER_NOTES` 骨架、贴运行时、顺手把本层元素补进可编辑层的下载清理名单。幂等，反复跑只刷新片段。
+- `scripts/test/presenter.test.js`：注入器回归测试，5 条，纯 Node 无浏览器。
+
+### 能力
+- **演讲者屏**：当前页 + 下一页两个 16:9 预览（只发 `postMessage` 不重载 iframe）、备注编辑器（按 `data-slide-id` 存 localStorage，300ms 防抖）、计时（总时长 / 本页 / 计划 / 剩余超时）、排练记录（本地留最近 5 次）、宫格选页、三档布局（均衡 / 页面优先 / 备注优先）。
+- **观众屏**：`window.open` 打开同文件 `?he-mode=audience`，藏掉 deck 自己的 HUD 和提示，只显示页面。
+- **现场工具**：激光笔（L）、圈选（C）、清除（X）、观众屏黑屏（B）/ 白屏（W）/ 冻结（F）。坐标归一化后传给观众屏，不受两端尺寸差异影响。
+- **同步与恢复**：`postMessage` + `BroadcastChannel` + `storage` 三通道，心跳 2.6 秒。状态机走 未连接 / 连接中 / 已同步 / 未同步 / 已冻结 / 弹窗被拦截 六态，「重新打开观众屏」始终可用，退出时发 `bye` 让观众窗收尾。
+- **翻页适配**：优先用 deck 暴露的 `window.__heDeck.go()`；没有就派发键盘事件让 deck 自己的翻页逻辑走（老 deck 不用改，代价是慢一拍）。当前页从 `.slide.is-active` 读，`MutationObserver` 兜住外部翻页。
+
+### 兼容处理
+- 入口用 `Shift+P` 而不是 `P`：`P` 已被现场演示层占用为打印。
+- 键盘接管挂 `window` 捕获阶段，比 deck 的 window 冒泡和另外两层的 document 捕获都早，演讲者视图里方向键只翻一次，不会双翻。
+- 演讲者视图内的点击 `stopPropagation()`，挡住 deck 的「点半屏翻页」，同时视图里的按钮照常能点。
+- 演讲者层所有 DOM 挂 `body`，一个不往 `.slide` 里塞，免疫可编辑层 `restore()` 的整段 innerHTML 重写。
+- 覆盖物自带 `@media print` 隐藏，不依赖 deck 的打印清单。
+
+### 验证
+- 浏览器实测（Chrome 157 headless + CDP，1440×813）：在两份 deck 上各跑 17 项，全通过，页面异常 0。覆盖进视图、观众窗弹开与同步、双端翻页一致、预览不重载、宫格选页、计时暂停重置、排练记录、自动翻页引导、激光圈选清除、黑屏白屏冻结恢复、观众窗关闭后再打开、备注落盘、快捷键面板、演前检查、退出恢复舞台。
+- 两条翻页路径都测了：有 `window.__heDeck` 钩子的（`examples/darktech-keynote.html`）和没有钩子靠模拟键盘兜底的。
+- `node --test scripts/test/presenter.test.js`：5/5。
+- `examples/darktech-keynote.html` 作为参照实现装好整层，附 12 页真实演讲备注（总计划 12.1 分钟），并加了 `window.__heDeck` 钩子。
+
+### 已知边界
+- 观众窗的全屏要自己按 F11。浏览器要求全屏必须由用户手势触发，演讲者屏的「检查」里那个按钮只能全屏演讲者自己那屏，文案已写明。
+- 同步只能证明软件页面状态，不能检测 HDMI / 转接器 / 投影仪线缆是否物理断开。
+- 老 deck 没有 `window.__heDeck` 时，翻页靠模拟键盘事件，预览会比主屏慢一拍。
 ## [1.4.2] - 2026-09-13
 
 第二轮公开审查后的转换器加固，每条修复都带最小 fixture 回归测试（scripts/test/render-fidelity.test.js）。

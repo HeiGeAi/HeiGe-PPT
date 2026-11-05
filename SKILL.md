@@ -7,14 +7,14 @@ description: >
   核心方法论：一页一句话 / 黄金三秒 / 节奏编排 / 视觉锤 / 反 AI 体检。
   当用户要求"做个 PPT""做套幻灯片""做个路演 deck""做个产品发布 keynote""把这份内容做成演示"
   "做个汇报""做个提案""把这个做成幻灯片""做个演讲稿配图"时，必须使用此 skill。
-  输出为单文件 HTML 幻灯片：16:9、键盘翻页、可投屏可导出 PDF，且默认带可编辑层，用户打开就能在浏览器里直接改幻灯片文字、再导出 PDF 或下载独立 HTML。动手前先定调，出货前过反 AI 体检。
+  输出为单文件 HTML 幻灯片：16:9、键盘翻页、可投屏可导出 PDF，可选带演讲者模式（演讲者屏备注 + 观众屏同步），且默认带可编辑层，用户打开就能在浏览器里直接改幻灯片文字、再导出 PDF 或下载独立 HTML。动手前先定调，出货前过反 AI 体检。
   需要给客户一份能在 PowerPoint / WPS 里直接改的 .pptx 时，用内置的 html2pptx 转换器把同一份 HTML 设计源转成可编辑 PPTX，一份设计两种格式，不用做两遍。
   注意：本 skill 负责"从零设计有气场的演示 deck"；如果是做单张落地页/网页界面，那是 heige-ui 的活；
   如果是把现成文档转成静态展示长页，那是 html-beautifier 的活。
 license: MIT
 metadata:
   author: Blake 黑哥
-  version: "1.4.2"
+  version: "1.5.0"
   compatible_platforms: "Claude Code, Cursor, Windsurf, Cline, Aider, OpenClaw, Hermes, ChatGPT, Claude.ai, 通用 AI 助手"
 ---
 
@@ -135,6 +135,7 @@ HeiGe-PPT 换一种做法：**把每一页讲成一句话，把整套 deck 导�
 - 字号往大了上，台下最后一排能看清；字体做性格，别用系统默认裸奔。
 - **可编辑**：成品默认带上可编辑层（把 `references/editable-layer.md` 里的 script 块贴在 `</body>` 前），用户打开点「编辑」就能在浏览器里直接改幻灯片文字，改完导出 PDF 或下载独立 HTML；放映模式下方向键翻页和打字不打架，工具栏不进 PDF。
 - **要拿到现场讲的 deck，加现场演示层**（`references/live-show-layer.md`）：全屏按钮 + F 键、示例截图点击放大（lightbox 打开时接管键盘不翻页）、观众一键复制提示词、现场跳转大按钮。培训课、发布会、带观众动手的分享，这层是标配。
+- **一个人对着投影仪讲，加演讲者层**（`references/presenter-mode.md`）：跑一条 `node scripts/inject-presenter.mjs 你的deck.html` 就装上。演讲者屏看备注 + 下一页预览 + 计时，台下屏只显示当前页；带激光笔、圈选、观众屏黑屏/冻结、宫格跳页、排练记录。备注写在 `SPEAKER_NOTES` 里，按 `data-slide-id` 存，重排页面不串页。
 
 ### 第五步：反 AI 体检 + 试讲复检
 
@@ -170,10 +171,15 @@ node scripts/html2pptx.js 你的deck.html 你的deck.pptx
 - `anti-slop-checklist.md`：反 AI 体检清单。出货前逐条过。
 - `editable-layer.md`：可编辑层。一段拖进 `</body>` 前就生效的 script，让成品在浏览器里直接改幻灯片文字、导出 PDF/HTML，放映翻页和打字不打架、工具栏不进打印。
 - `live-show-layer.md`：现场演示层。全屏按钮 + F 键、截图点击放大 lightbox、一键复制提示词、现场跳转按钮，全部不进打印。可与可编辑层共存（自动挂进同一条工具栏）。
+- `presenter-mode.md`：演讲者模式。演讲者屏（当前页 + 下一页预览 + 备注 + 计时 + 宫格）与观众屏（只显示页面）分开，带激光笔、圈选、黑屏白屏冻结、排练记录、三通道同步与断线恢复。纯本地、零依赖，用 `Shift+P` 进入。
 
 ## 工具（scripts/）
 
 - `html2pptx.js`：双格式交付转换器。把一份 HeiGe-PPT 单文件 HTML deck 转成可编辑 .pptx。零配置、自动探测系统已装的 Chrome / Chromium，跨 mac / Linux / Windows。用法见上方「第六步」。
+- `inject-presenter.mjs`：一条命令给 deck 装上演讲者层（补页面身份、插备注骨架、贴运行时），幂等可重跑。
+- `validate-presenter-mode.mjs`：静态校验演讲者层装对没有、备注字段齐不齐、总时长有没有超。
+- `test/presenter.test.js`：注入器回归测试，CI 会跑（`npm --prefix scripts test`）。
+- `test/e2e-presenter.mjs`：演讲者层的浏览器实测，手动跑，要本机 Chrome。
 
 ## 成品参考（examples/）
 
