@@ -14,7 +14,7 @@ description: >
 license: MIT
 metadata:
   author: Blake 黑哥
-  version: "1.5.2"
+  version: "1.5.3"
   compatible_platforms: "Claude Code, Cursor, Windsurf, Cline, Aider, OpenClaw, Hermes, ChatGPT, Claude.ai, 通用 AI 助手"
 ---
 
@@ -136,6 +136,8 @@ HeiGe-PPT 换一种做法：**把每一页讲成一句话，把整套 deck 导�
 - **可编辑**：成品默认带上可编辑层（把 `references/editable-layer.md` 里的 script 块贴在 `</body>` 前），用户打开点「编辑」就能在浏览器里直接改幻灯片文字，改完导出 PDF 或下载独立 HTML；放映模式下方向键翻页和打字不打架，工具栏不进 PDF。
 - **要拿到现场讲的 deck，加现场演示层**（`references/live-show-layer.md`）：全屏按钮 + F 键、示例截图点击放大（lightbox 打开时接管键盘不翻页）、观众一键复制提示词、现场跳转大按钮。培训课、发布会、带观众动手的分享，这层是标配。
 - **一个人对着投影仪讲，加演讲者层**（`references/presenter-mode.md`）：跑一条 `node scripts/inject-presenter.mjs 你的deck.html` 就装上。演讲者屏看备注 + 下一页预览 + 计时，台下屏只显示当前页；带激光笔、圈选、观众屏黑屏/冻结、宫格跳页、排练记录。备注写在 `SPEAKER_NOTES` 里，按 `data-slide-id` 存，重排页面不串页。
+- **三层都装时的顺序只能是：可编辑层 → 现场演示层 → 演讲者层。** 现场演示层要把「全屏」挂进可编辑层建的 `.he-toolbar`，得排在它后面；演讲者层启动时就要抓完整的 `.slide` 列表和 `window.__heDeck` 钩子，排最后。装反的后果：现场演示层找不到工具栏会自建一条 `.he-showbar`，页面上多一条悬浮工具条。
+- **给 deck 留一个翻页出口**：在翻页脚本里加 `window.__heDeck = { get index(){ return i; }, go: show, slides };`（变量名换成你自己的）。演讲者层靠它精确翻页；没有这行也能用，但预览会比主屏慢一拍。
 
 ### 第五步：反 AI 体检 + 试讲复检
 
