@@ -50,3 +50,11 @@ jobs:
           CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
           echo "chromium: $CHROME"
           node scripts/test/e2e-presenter.mjs examples/darktech-keynote.html --chrome "$CHROME" --no-sandbox
+      - name: 三层共存实测
+        run: |
+          CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
+          node scripts/test/three-layer.mjs --chrome "$CHROME" --no-sandbox
+      - name: 演讲者层边界用例
+        run: |
+          CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
+          node scripts/test/presenter-edge.mjs examples/campus-talk.html --chrome "$CHROME" --no-sandbox

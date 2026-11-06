@@ -75,8 +75,14 @@ node validate-presenter-mode.mjs <deck.html> [--target-minutes 30] [--strict]
 ## 测试
 
 ```bash
-node --test test/presenter.test.js                    # 注入器回归，5 条，不需要浏览器
-node test/e2e-presenter.mjs examples/darktech-keynote.html   # 浏览器端实测，要本机 Chrome
+node --test test/presenter.test.js                           # 注入器回归，5 条，不需要浏览器
+node test/e2e-presenter.mjs examples/darktech-keynote.html  # 演讲者层实测，9 项，要本机 Chrome
+node test/three-layer.mjs                                   # 三层共存实测，7 项，要本机 Chrome
+node test/presenter-edge.mjs examples/campus-talk.html      # 边界用例，6 项：小屏布局 + 自动翻页
 ```
+
+`three-layer.mjs` 现场组装一份三层 deck（可编辑层 + 现场演示层 + 演讲者层），验证三层不打架、编辑态点击不翻页、lightbox 打开时方向键只关图、演讲者视图里 F 是冻结不是全屏。它顺带验证「`references/live-show-layer.md` 的代码块贴进 deck 就能用」这个前提。
+
+`presenter-edge.mjs` 测两件容易只写在纸上没人验的事：小屏（820×620）下两个预览是否仍保持 16:9 且不超出容器；自动翻页是不是真的会翻、打开宫格时会不会暂停。
 
 `e2e-presenter.mjs` 跑九项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、一次按键只翻一页且主 deck 同步、宫格选页、计时、备注落盘、退出恢复。CI 的 `presenter` job 会跑它（Node 22 + playwright 装好的 chromium，`--chrome` 传路径、`--no-sandbox` 关沙箱）。

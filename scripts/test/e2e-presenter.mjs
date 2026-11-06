@@ -145,7 +145,9 @@ const waitFor = async (expr, label, timeout = 10000) => {
   }
   throw new Error('等待超时: ' + label);
 };
-const press = (key, extra = {}) => page.eval(`window.dispatchEvent(new KeyboardEvent('keydown',${JSON.stringify({ key, bubbles: true, cancelable: true, ...extra })}))`);
+// 派发到 body 而不是 window：真实按键的事件路径是 window→document→body，
+// 派发到 window 时 document 上的捕获监听收不到，会漏掉另外两层的反应。
+const press = (key, extra = {}) => page.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown',${JSON.stringify({ key, bubbles: true, cancelable: true, ...extra })}))`);
 const st = () => page.eval('window.__hePresenter.debugState()');
 
 console.log(`\n演讲者层实测：${basename(deckPath)}\n`);
