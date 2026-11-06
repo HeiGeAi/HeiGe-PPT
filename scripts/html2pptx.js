@@ -165,6 +165,7 @@ async function extract(htmlPath, { offline = false } = {}) {
   await page.addStyleTag({ content: `*{transition:none!important;animation:none!important}
     .slide{transform:none!important}
     .slide.he-solo{opacity:1!important;visibility:visible!important;position:absolute!important;inset:0!important;z-index:9999!important}
+    .slide.he-need-display{display:block!important}
     .slide.he-hide{opacity:0!important;visibility:hidden!important}
     body>.he-toolbar,body>.he-showbar,body>.lb,body>.hud,body>.bar,body>.hint,
     body>.brandmark,body>.prog,body>.pgfoot,body>.toolbar{display:none!important}` });
@@ -222,6 +223,18 @@ async function extract(htmlPath, { offline = false } = {}) {
     out.bg = cs(slide).backgroundColor;
     if (transp(out.bg)) out.bg = cs(stage).backgroundColor;
     if (transp(out.bg)) out.bg = cs(document.body).backgroundColor;
+    if (transp(out.bg)) {
+      // 渐变或背景图画在 background-image 里，backgroundColor 拿到的是透明。
+      // 不退一步的话 PPT 会落白底，深色渐变页上的浅色正文整页看不见。
+      // 这里取 gradient 里第一个颜色兜底，并在 main 里提示底色是估算的。
+      for (const el of [slide, stage, document.body]) {
+        const gi = cs(el).backgroundImage;
+        if (gi && gi !== "none") {
+          const m = gi.match(/(?:rgba?|hsla?)\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+          if (m) { out.bg = m[0]; out.bgFromImage = true; break; }
+        }
+      }
+    }
 
       // 背景色块 / 边框 / 细线：非文字、有可见背景或边框的块
       const blockSel = "div,section,span,header,aside,figure,hr";
@@ -255,34 +268,43 @@ async function extract(htmlPath, { offline = false } = {}) {
       // SVG：记录位置 → 转图占位。给入选 svg 打标记，保证后续截图与几何数组下标一一对应。
       slide.querySelectorAll("svg").forEach((el) => {
         const r = rectOf(el);
-        if (r.w > 8 && r.h > 8) { el.setAttribute("data-he-svg", "1"); out.svgs.push({ x: r.x, y: r.y, w: r.w, h: r.h }); }
+        if (r.w <= 8 || r.h <= 8) return;
+        // 隐藏的 svg（入场动画未触发、display:none 容器里的）不该入选，否则会截到空白，
+        // 或者截图失败后在 PPT 里平白多一个「图形转换失败」的红框。
+        if (!visibleDeep(el, r.raw)) return;
+        el.setAttribute("data-he-svg", "1");
+        out.svgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
       });
 
-      // <img>：走同一条截图通道，不读原文件。
-      // 这样 data URI / 相对路径 / 跨域 URL 一视同仁，也不用担心图片没加载完拿到空数据。
+      // <img> 和 <canvas>：走同一条截图通道，不读原文件。
+      // 这样 data URI / 相对路径 / 跨域 URL 一视同仁，也不担心图片没加载完拿到空数据。
+      //
+      // 关键：每个元素打一个唯一序号，截图阶段按序号取，不能靠下标对齐。
+      // img 和 canvas 是两次 querySelectorAll 收集的，顺序和文档顺序不一致；
+      // 截图用 [data-he-shot] 拿到的是文档顺序，混排时会张冠李戴。
+      let shotSeq = 0;
+      const collectShot = (el) => {
+        const r = rectOf(el);
+        if (r.w <= 8 || r.h <= 8) return;
+        if (!visibleDeep(el, r.raw)) return;
+        const seq = shotSeq++;
+        el.setAttribute("data-he-shot", String(seq));
+        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h, seq });
+      };
+
       slide.querySelectorAll("img").forEach((el) => {
-        const r = rectOf(el);
-        if (r.w <= 8 || r.h <= 8) return;
-        if (!visibleDeep(el, r.raw)) return;
-        // 没加载成功的图不截，否则会得到一张透明 PNG 冒充正常图片
+        // 没加载成功的图不截，否则会得到一张空白图冒充正常内容
         if (!el.complete || !el.naturalWidth) { out.imgSkipped++; return; }
-        el.setAttribute("data-he-img", "1");
-        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+        collectShot(el);
       });
-
-      // <canvas> 也走截图通道：图表库画出来的内容只有像素，没有 DOM 可提
-      slide.querySelectorAll("canvas").forEach((el) => {
-        const r = rectOf(el);
-        if (r.w <= 8 || r.h <= 8) return;
-        if (!visibleDeep(el, r.raw)) return;
-        el.setAttribute("data-he-img", "1");
-        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
-      });
+      slide.querySelectorAll("canvas").forEach(collectShot);
 
       // 文字：取「自身带直接文字」的块。含 block 级子元素的容器不整段取，
       // 而是用 Range 精确量取「该块自身直接文字」的几何，各成一框，
       // 避免 line-height / display:block 子元素折行导致的几何错位与重叠，也不丢失直接文字。
-      const textSel = "h1,h2,h3,h4,h5,h6,p,li,span,div,a,b,strong,em,i,blockquote,figcaption,cite,td,th";
+      // section/header/aside/figure 必须进来：它们在 blockSel 里，带直接文字时会被形状通道
+      // 排除掉（hasDirectText 直接 return），文字通道又不含它们，那段文字就两头落空。
+      const textSel = "h1,h2,h3,h4,h5,h6,p,li,span,div,a,b,strong,em,i,blockquote,figcaption,cite,td,th,section,header,aside,figure";
       const seen = new Set();
       const hasBlockChild = (el) => {
         for (const c of el.children) {
@@ -372,8 +394,16 @@ async function extract(htmlPath, { offline = false } = {}) {
     await page.evaluate((i) => {
       const slides = [...document.querySelectorAll(".slide")];
       slides.forEach((s, k) => {
-        s.classList.remove("he-solo", "he-hide");
-        s.classList.add(k === i ? "he-solo" : "he-hide");
+        s.classList.remove("he-solo", "he-hide", "he-need-display");
+        if (k === i) {
+          // 有的 deck 用 display:none 切页（而不是 opacity/visibility）。这类页
+          // getBoundingClientRect 全是 0，量不到任何东西，整页会变成空白 PPT。
+          // 只对确认是 none 的那页补 display，不碰 flex/grid 布局的页面。
+          if (getComputedStyle(s).display === "none") s.classList.add("he-need-display");
+          s.classList.add("he-solo");
+        } else {
+          s.classList.add("he-hide");
+        }
       });
     }, i);
     await page.waitForTimeout(60);
@@ -389,14 +419,17 @@ async function extract(htmlPath, { offline = false } = {}) {
         } catch (e) { sd.svgs[j].data = null; }
       }
     }
-    // 截本页 <img>/<canvas>：和 SVG 一样按渲染结果截图，不读原文件
+    // 截本页 <img>/<canvas>：按渲染结果截图，不读原文件。
+    // 用 JPEG 而不用 PNG：照片类内容 PNG 无损压不动，一张全屏照片就能让 PPTX 涨到几 MB。
+    // 这里截的是「渲染后的画面」，本来就带着页面底色，不需要 alpha，JPEG 88 在视觉上看不出差别。
     if (sd.imgs.length) {
-      const shotEls = await page.$$(".slide.he-solo [data-he-img]");
-      for (let j = 0; j < sd.imgs.length && j < shotEls.length; j++) {
+      for (const im of sd.imgs) {
         try {
-          const buf = await shotEls[j].screenshot({ type: "png" });
-          sd.imgs[j].data = "data:image/png;base64," + buf.toString("base64");
-        } catch (e) { sd.imgs[j].data = null; }
+          const handle = await page.$(`.slide.he-solo [data-he-shot="${im.seq}"]`);
+          if (!handle) { im.data = null; continue; }
+          const buf = await handle.screenshot({ type: "jpeg", quality: 88 });
+          im.data = "data:image/jpeg;base64," + buf.toString("base64");
+        } catch (e) { im.data = null; }
       }
     }
     slidesData.push(sd);
@@ -406,6 +439,14 @@ async function extract(htmlPath, { offline = false } = {}) {
   const dedupSkipped = slidesData.reduce((n, sd) => n + (sd.dedupSkipped || 0), 0);
   if (dedupSkipped > 0) {
     console.warn(`⚠ 提示：有 ${dedupSkipped} 个文本框因「同位置同文本」被去重跳过，请人工确认是否有叠层内容被丢弃。`);
+  }
+  const imgSkipped = slidesData.reduce((n, sd) => n + (sd.imgSkipped || 0), 0);
+  if (imgSkipped > 0) {
+    console.warn(`⚠ 注意：有 ${imgSkipped} 张图片没能加载成功（相对路径 404、离线模式拦截、或懒加载未触发），已跳过，不会出现在 PPT 里。`);
+  }
+  const bgFromImage = slidesData.filter((sd) => sd.bgFromImage).length;
+  if (bgFromImage > 0) {
+    console.warn(`⚠ 提示：有 ${bgFromImage} 页的底色是渐变或背景图，PPT 里只能取第一个颜色近似，不是原样渐变。`);
   }
 
   return slidesData;

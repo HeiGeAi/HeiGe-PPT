@@ -58,3 +58,7 @@ jobs:
         run: |
           CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
           node scripts/test/presenter-edge.mjs examples/campus-talk.html --chrome "$CHROME" --no-sandbox
+      - name: file:// 双击打开场景
+        run: |
+          CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
+          node scripts/test/file-protocol.mjs examples/darktech-keynote.html --chrome "$CHROME" --no-sandbox

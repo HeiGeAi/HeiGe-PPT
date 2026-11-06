@@ -79,9 +79,12 @@ node --test test/presenter.test.js                           # 注入器回归�
 node test/e2e-presenter.mjs examples/darktech-keynote.html  # 演讲者层实测，9 项，要本机 Chrome
 node test/three-layer.mjs                                   # 三层共存实测，7 项，要本机 Chrome
 node test/presenter-edge.mjs examples/campus-talk.html      # 边界用例，6 项：小屏布局 + 自动翻页
+node test/file-protocol.mjs examples/darktech-keynote.html  # file:// 双击打开，7 项
 ```
 
 `three-layer.mjs` 现场组装一份三层 deck（可编辑层 + 现场演示层 + 演讲者层），验证三层不打架、编辑态点击不翻页、lightbox 打开时方向键只关图、演讲者视图里 F 是冻结不是全屏。它顺带验证「`references/live-show-layer.md` 的代码块贴进 deck 就能用」这个前提。
+
+`file-protocol.mjs` 测最常见的打开方式：双击 HTML（`file://` 协议）。这个场景下 origin 是 null，localStorage 可能被限制、iframe 加载 file:// URL 可能受同源策略影响、BroadcastChannel 行为不确定，只能靠 postMessage 直连兜底。七项覆盖装载、localStorage、进视图、预览跟随、观众窗、双端同步、备注落盘。
 
 `presenter-edge.mjs` 测两件容易只写在纸上没人验的事：小屏（820×620）下两个预览是否仍保持 16:9 且不超出容器；自动翻页是不是真的会翻、打开宫格时会不会暂停。
 
