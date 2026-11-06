@@ -247,7 +247,11 @@ await step('备注按 data-slide-id 存进 localStorage', async () => {
   await sleep(700); // 备注保存有 300ms 防抖，等它落盘
   const key = await page.eval("Object.keys(localStorage).find((k) => k.startsWith('heige-ppt-note:')) || ''");
   need(key, 'localStorage 里没有备注键');
-  need(/slide-\d+$/.test(key), `备注键没带页面 id: ${key}`);
+  // 备注按 data-slide-id 存。id 允许是 slide-01，也允许是文档推荐的语义 slug（proof / pricing），
+  // 所以这里比对当前页的真实 id，不假定命名格式。
+  const currentId = await page.eval("document.querySelector('.slide.is-active')?.dataset.slideId || ''");
+  need(currentId, '当前页没有 data-slide-id');
+  need(key.endsWith(currentId), `备注键 ${key} 没对上当前页 id ${currentId}`);
   return key.slice(-24);
 });
 

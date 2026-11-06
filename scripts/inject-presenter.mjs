@@ -65,9 +65,21 @@ function titleOf(endIndex) {
   const rest = html.slice(endIndex);
   const stop = rest.search(/<section\b|<\/body>/i);
   const body = stop >= 0 ? rest.slice(0, stop) : rest;
-  const m = body.match(/<(h1|h2|h3)\b[^>]*>([\s\S]*?)<\/\1>/i);
-  if (!m) return '';
-  return m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  // 先找标题标签。纯数字页（大数字做主张）常常没有 h1-h3，所以往下退一档：
+  // 找版式上习惯承载标题的容器类，再退到「页内文字最长的一段」。
+  let m = body.match(/<(h1|h2|h3|h4)\b[^>]*>([\s\S]*?)<\/\1>/i);
+  let raw = m ? m[2] : '';
+  if (!raw) {
+    const cls = body.match(/class="[^"]*\b(hero|display|kicker|lede|num|big|hammer|statement|cover|title)[^"]*"[^>]*>([\s\S]{0,200}?)</i);
+    if (cls) raw = cls[2];
+  }
+  if (!raw) {
+    // 兜底：这一页里最长的一段文字，去掉标签后取前 40 字
+    const chunks = [...body.matchAll(/>([^<>]{4,})</g)].map((x) => x[1].trim()).filter(Boolean);
+    chunks.sort((a, b) => b.length - a.length);
+    raw = chunks[0] || '';
+  }
+  return String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
 }
 
 // 从后往前改，避免位移

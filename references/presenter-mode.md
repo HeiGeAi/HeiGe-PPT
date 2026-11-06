@@ -171,7 +171,9 @@ node scripts/validate-presenter-mode.mjs path/to/deck.html
 node scripts/validate-presenter-mode.mjs path/to/deck.html --target-minutes 30
 ```
 
-第一条查结构：页数、`data-slide-id`、备注与页面的对应。第二条额外核对总计划时长与现场给定的分钟数是否对得上。
+第一条查结构：页数、`data-slide-id`、备注与页面的对应。
+
+第二条带 `--target-minutes N` 时，拿所有页 `minutes` 之和与 N 比：**超过 N 的 90% 报 error，低于 N 的 55% 报 warning**。90% 是留给开场、问答、翻页损耗的余量，所以设 `--target-minutes 30` 时计划最多写 27 分钟。只有每页都有 `minutes` 才做这个核算，部分页缺就给 warning 跳过。
 
 浏览器那一层有脚本，不用全靠手点：
 

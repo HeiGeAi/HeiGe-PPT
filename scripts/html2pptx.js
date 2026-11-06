@@ -215,7 +215,7 @@ async function extract(htmlPath, { offline = false } = {}) {
       return { x: (r.left - sr.left) * sx, y: (r.top - sr.top) * sy, w: r.width * sx, h: r.height * sy, raw: r };
     };
 
-    const out = { texts: [], shapes: [], svgs: [], bg: null, dedupSkipped: 0 };
+    const out = { texts: [], shapes: [], svgs: [], imgs: [], bg: null, dedupSkipped: 0, imgSkipped: 0 };
     // 背景色：.slide 自身透明时回退取 .stage / body。深色 deck 常把底色画在舞台或 body 上，
     // 只读 .slide 会拿到透明 → PPT 落默认白底 → 浅色正文整页看不见。
     const transp = (c) => !c || /rgba?\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
@@ -256,6 +256,27 @@ async function extract(htmlPath, { offline = false } = {}) {
       slide.querySelectorAll("svg").forEach((el) => {
         const r = rectOf(el);
         if (r.w > 8 && r.h > 8) { el.setAttribute("data-he-svg", "1"); out.svgs.push({ x: r.x, y: r.y, w: r.w, h: r.h }); }
+      });
+
+      // <img>：走同一条截图通道，不读原文件。
+      // 这样 data URI / 相对路径 / 跨域 URL 一视同仁，也不用担心图片没加载完拿到空数据。
+      slide.querySelectorAll("img").forEach((el) => {
+        const r = rectOf(el);
+        if (r.w <= 8 || r.h <= 8) return;
+        if (!visibleDeep(el, r.raw)) return;
+        // 没加载成功的图不截，否则会得到一张透明 PNG 冒充正常图片
+        if (!el.complete || !el.naturalWidth) { out.imgSkipped++; return; }
+        el.setAttribute("data-he-img", "1");
+        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
+      });
+
+      // <canvas> 也走截图通道：图表库画出来的内容只有像素，没有 DOM 可提
+      slide.querySelectorAll("canvas").forEach((el) => {
+        const r = rectOf(el);
+        if (r.w <= 8 || r.h <= 8) return;
+        if (!visibleDeep(el, r.raw)) return;
+        el.setAttribute("data-he-img", "1");
+        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
       });
 
       // 文字：取「自身带直接文字」的块。含 block 级子元素的容器不整段取，
@@ -368,6 +389,16 @@ async function extract(htmlPath, { offline = false } = {}) {
         } catch (e) { sd.svgs[j].data = null; }
       }
     }
+    // 截本页 <img>/<canvas>：和 SVG 一样按渲染结果截图，不读原文件
+    if (sd.imgs.length) {
+      const shotEls = await page.$$(".slide.he-solo [data-he-img]");
+      for (let j = 0; j < sd.imgs.length && j < shotEls.length; j++) {
+        try {
+          const buf = await shotEls[j].screenshot({ type: "png" });
+          sd.imgs[j].data = "data:image/png;base64," + buf.toString("base64");
+        } catch (e) { sd.imgs[j].data = null; }
+      }
+    }
     slidesData.push(sd);
   }
 
@@ -390,7 +421,7 @@ function build(slidesData, outPath) {
   pres.author = "HeiGe-PPT";
   pres.title = path.basename(outPath, ".pptx");
 
-  let svgWarnings = 0, svgFailed = 0;
+  let svgWarnings = 0, svgFailed = 0, imgEmbedded = 0, imgFailed = 0;
   slidesData.forEach((sd) => {
     const s = pres.addSlide();
     const bgHex = rgbToHex(sd.bg);
@@ -424,6 +455,20 @@ function build(slidesData, outPath) {
         s.addText("图形转换失败，请人工补", { x: px(sv.x), y: px(sv.y), w: px(sv.w), h: px(sv.h),
           align: "center", valign: "middle", fontSize: 9, color: "C0392B" });
         svgFailed++;
+      }
+    });
+
+    // 2.5) <img>/<canvas>：按渲染结果嵌入，位置与尺寸对齐原样
+    sd.imgs.forEach((im) => {
+      if (im.data) {
+        s.addImage({ data: im.data, x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h) });
+        imgEmbedded++;
+      } else {
+        s.addShape(pres.shapes.RECTANGLE, { x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h),
+          fill: { type: "none" }, line: { color: "C0392B", width: 1, dashType: "dash" } });
+        s.addText("图片转换失败，请人工补", { x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h),
+          align: "center", valign: "middle", fontSize: 9, color: "C0392B" });
+        imgFailed++;
       }
     });
 
@@ -485,7 +530,7 @@ function build(slidesData, outPath) {
     });
   });
 
-  return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed }));
+  return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed, imgEmbedded, imgFailed }));
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -500,14 +545,20 @@ async function main(argv = process.argv.slice(2)) {
   const data = await extract(htmlPath, { offline });
   if (offline) console.log("→ 离线模式：已拦截全部非 file:// 网络请求");
   console.log(`→ 解析到 ${data.length} 页，开始生成可编辑 PPTX …`);
-  const { ok: svgN, failed: svgF } = await build(data, outPath);
+  const { ok: svgN, failed: svgF, imgEmbedded, imgFailed } = await build(data, outPath);
   console.log("✓ 已生成:", outPath);
   if (svgN > 0) {
     console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
     console.log("  如需在 PPT 中编辑这些图，请用 PowerPoint 的形状重画，或保留 HTML 版作为该图的可编辑源。");
   }
-  if (svgF > 0) {
-    console.log(`\n⚠ 注意：有 ${svgF} 处图形截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
+  if (imgEmbedded > 0) {
+    console.log(`\n→ 已嵌入 ${imgEmbedded} 张图片 / 画布（按渲染结果截图，位置与尺寸对齐原页面）。`);
+  }
+  if (svgF > 0 || imgFailed > 0) {
+    const parts = [];
+    if (svgF > 0) parts.push(`${svgF} 处图形`);
+    if (imgFailed > 0) parts.push(`${imgFailed} 张图片`);
+    console.log(`\n⚠ 注意：有 ${parts.join("、")}截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
   }
   return 0;
 }
