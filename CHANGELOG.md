@@ -2,6 +2,28 @@
 
 本项目所有重要变更记录于此。
 
+## [1.5.1] - 2026-11-06
+
+1.5.0 发布后的加固：把演讲者层接进 CI，把样例里积压的两处文档与代码不一致抹平。
+
+### 新增
+- **CI 加 presenter job**：`scripts/test/e2e-presenter.mjs` 进流水线，用 playwright-core 装好的 chromium 跑，Node 22。这层 650 行运行时此前完全没有自动化保护，改了坏不坏只能靠人肉点。
+- **e2e 补两条断言**：按一次方向键只能翻一页且主 deck 同步（锁住「本层 window 捕获先于 deck window 冒泡」这个隐式约定）；备注按 `data-slide-id` 落进 localStorage。
+- **e2e 支持 `--no-sandbox`**，CI 容器里也能跑；`CI` 环境变量存在时自动带上。
+
+### 修复
+- **6 份样例的可编辑层与 `references/editable-layer.md` 对齐**：保存前先克隆剥掉 `contenteditable` / `spellcheck` 再写 localStorage。此前样例存的是裸 `innerHTML`，刷新后字段在放映态仍可编辑，还会吞掉方向键翻页。
+- **6 份样例的「下载 HTML」清理选择器补齐**：从 `.he-toolbar,.he-style` 扩到含 `.lb`、`.he-showbar`、`#he-presenter`、`#he-presenter-btn`、`#he-presenter-style`。此前下载的独立文件会带着现场演示层和演讲者层的运行时覆盖物。
+
+### 样例
+- `examples/campus-talk.html` 装上演讲者层，附 11 页真实备注（计划 15.6 分钟）。至此两份样例（darktech-keynote 深色 keynote、campus-talk 张扬人文演讲）都装了层，跨版式通用性有实跑证据。
+
+### 验证
+- 6 份样例逐一浏览器实测：进编辑态改字 → 读 localStorage，`contenteditable` 与 `spellcheck` 均为 0 命中。
+- 清理选择器实测命中数：装了层的 4 个（`.he-style` / `.he-toolbar` / `#he-presenter-style` / `#he-presenter-btn`），没装的 2 个。
+- campus-talk 与 darktech-keynote 各跑一遍 e2e，9/9 通过，页面异常 0。
+- `node --test scripts/test/presenter.test.js` 5/5。
+
 ## [1.5.0] - 2026-11-06
 
 演讲者层。把「一个人对着投影仪讲」拆成两块屏：演讲者屏看备注和下一页，台下屏只显示当前页。纯本地、零依赖、不需要账号，贴上就生效。

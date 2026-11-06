@@ -388,7 +388,10 @@ if (targetMinutes > 0) {
 const INSTALL_MARKERS = [
   { needle: 'id="he-presenter-style"', label: '<style id="he-presenter-style"> 样式块' },
   { needle: "__hePresenter", label: "window.__hePresenter 运行时" },
-  { needle: "he-presenter-btn", label: "he-presenter-btn 入口按钮" },
+  // 入口按钮是运行时用 trigger.id='he-presenter-btn' 造出来的，HTML 里没有静态标签。
+  // 这里查赋值形式而不是纯 id 串：样例的「下载 HTML」清理选择器里也含 #he-presenter-btn，
+  // 查子串会把「没装层」误判成「装了但不完整」。
+  { needle: "id='he-presenter-btn'", label: "he-presenter-btn 入口按钮" },
 ];
 const missingInstall = INSTALL_MARKERS.filter((item) => !has(item.needle));
 const layerPresent = missingInstall.length < INSTALL_MARKERS.length;

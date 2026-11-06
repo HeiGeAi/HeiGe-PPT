@@ -160,7 +160,7 @@ node scripts/inject-presenter.mjs 你的deck.html
 [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style,.lb,.he-showbar,#he-presenter,#he-presenter-btn,#he-presenter-style')).forEach(function(n){ n.remove(); });
 ```
 
-注入器会自动补这一句，但它只认 `.he-toolbar,.he-style` 这个两选择器的旧写法（6 份 examples 都是这写法）。从 `references/editable-layer.md` 的新片段建的 deck 已经带了 `.lb,.he-showbar`，注入器匹配不到，得手工补。
+注入器会自动补这一句。它按「以 `.he-toolbar` 开头的选择器字符串」识别，两选择器的旧写法和七项的新写法都能认；已经补过就跳过，不会重复追加。
 
 ## 生成后验证
 
@@ -171,7 +171,15 @@ node scripts/validate-presenter-mode.mjs path/to/deck.html --target-minutes 30
 
 第一条查结构：页数、`data-slide-id`、备注与页面的对应。第二条额外核对总计划时长与现场给定的分钟数是否对得上。
 
-浏览器实测清单，逐条点一遍：
+浏览器那一层有脚本，不用全靠手点：
+
+```bash
+node scripts/test/e2e-presenter.mjs path/to/deck.html
+```
+
+它跑九项核心链路（入口、进视图、观众窗同步、双端翻页一致、一次按键只翻一页且主 deck 同步、宫格、计时、备注落盘、退出恢复）。CI 的 `presenter` job 用 `examples/darktech-keynote.html` 跑的就是它。
+
+下面这份清单留给现场手工验收，覆盖脚本顾不到的视觉与体感：
 
 - 进视图：按钮进得去，`Shift+P` 也进得去。
 - 观众窗：允许弹窗时能开出来；拦掉弹窗后视图显示「弹窗被拦截」，「重新打开观众屏」还能救回来。

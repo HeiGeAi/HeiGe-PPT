@@ -107,9 +107,10 @@
   function downloadHTML(){
     setEdit(false);
     var clone = document.documentElement.cloneNode(true);
-    // 连现场演示层的运行时覆盖物一并剥掉：lightbox 遮罩 / 自建工具栏。否则放大图开着时下载，
-    // 导出文件会带一个关不掉的全屏遮罩；工具栏也会被重复注入。
-    [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style,.lb,.he-showbar')).forEach(function(n){ n.remove(); });
+    // 连另外两层的运行时覆盖物一并剥掉：现场演示层的 lightbox 遮罩 / 自建工具栏，
+    // 演讲者层的视图壳 / 入口按钮 / 样式块。否则放大图开着时下载，导出文件会带一个关不掉的全屏遮罩；
+    // 工具栏和「演讲模式」按钮也会被重复注入。
+    [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style,.lb,.he-showbar,#he-presenter,#he-presenter-btn,#he-presenter-style')).forEach(function(n){ n.remove(); });
     [].slice.call(clone.querySelectorAll('[data-he-field]')).forEach(function(n){
       n.removeAttribute('data-he-field'); n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
     });

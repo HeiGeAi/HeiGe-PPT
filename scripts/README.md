@@ -79,4 +79,4 @@ node --test test/presenter.test.js                    # 注入器回归，5 条�
 node test/e2e-presenter.mjs examples/darktech-keynote.html   # 浏览器端实测，要本机 Chrome
 ```
 
-`e2e-presenter.mjs` 手动跑，不进 CI（它要开窗口、要弹窗权限）。它跑七项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、宫格选页、计时、退出恢复。
+`e2e-presenter.mjs` 跑九项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、一次按键只翻一页且主 deck 同步、宫格选页、计时、备注落盘、退出恢复。CI 的 `presenter` job 会跑它（Node 22 + playwright 装好的 chromium，`--chrome` 传路径、`--no-sandbox` 关沙箱）。

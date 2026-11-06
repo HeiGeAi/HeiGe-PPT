@@ -28,3 +28,25 @@ jobs:
         # 本工具处理的图片来自 playwright 自截图，实际可利用性低；audit 级别提到 critical，
         # 让 CI 信号恢复意义，上游出修复版后随依赖升级消化。
       - run: npm audit --prefix scripts --audit-level=critical
+
+  # 演讲者层的浏览器实测。
+  # 静态校验（validate-presenter-mode.mjs）只看 HTML 结构，翻页、观众屏同步、
+  # 计时这些只有真跑才知道坏没坏。这层 650 行运行时，CI 不覆盖就是裸奔。
+  # 用 Node 22 是因为脚本靠全局 WebSocket 说 CDP，Node 20 还没有。
+  presenter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci --prefix scripts
+      - run: ./scripts/node_modules/.bin/playwright-core install --with-deps chromium
+      - name: 演讲者层浏览器实测
+        run: |
+          CHROME=$(node -p "require('./scripts/node_modules/playwright-core').chromium.executablePath()")
+          echo "chromium: $CHROME"
+          node scripts/test/e2e-presenter.mjs examples/darktech-keynote.html --chrome "$CHROME" --no-sandbox

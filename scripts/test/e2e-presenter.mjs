@@ -3,14 +3,18 @@
  * 演讲者层的浏览器端实测。
  *
  * 静态校验器只能看 HTML 结构，翻页、观众屏同步、计时这些必须真跑一遍。
- * 这个脚本用系统 Chrome 的无头模式 + CDP（零依赖，Node 18+ 原生 fetch / WebSocket）跑核心链路：
- * 进演讲者视图 → 开观众窗 → 双端翻页同步 → 宫格选页 → 退出恢复。
+ * 用 Chrome 的无头模式 + CDP 跑核心链路，零依赖：
+ * 进演讲者视图 → 开观众窗 → 双端翻页同步 → 宫格选页 → 计时 → 退出恢复。
  *
  * 用法：
  *   node test/e2e-presenter.mjs examples/darktech-keynote.html
+ *   node test/e2e-presenter.mjs examples/darktech-keynote.html --chrome /path/to/chrome --no-sandbox
  *
- * 需要本机装了 Chrome（macOS 默认路径）或改用 --chrome 指定。
- * 不进 CI：它要开窗口、要弹窗权限，跑在本地开发机上。
+ * 找浏览器：--chrome 指定 > 环境变量 CHROME_PATH > 系统常见路径。
+ * CI 里用 `playwright-core` 装好的 chromium，路径由 workflow 传进来。
+ *
+ * 要求 Node 22+（脚本用全局 WebSocket 说 CDP）。仓库主 CI 用 Node 20，
+ * 这条实测在独立 job 里跑 Node 22。
  */
 
 import { spawn } from 'node:child_process';
@@ -30,9 +34,11 @@ const argv = process.argv.slice(2);
 const deckArg = argv.find((a) => !a.startsWith('--'));
 const chromeFlag = argv.indexOf('--chrome');
 const chromeArg = chromeFlag >= 0 ? argv[chromeFlag + 1] : null;
+// CI 容器里 chromium 常需要关沙箱，且 /dev/shm 偏小
+const noSandbox = argv.includes('--no-sandbox') || Boolean(process.env.CI);
 
 if (!deckArg) {
-  console.error('用法: node test/e2e-presenter.mjs <deck.html> [--chrome /path/to/chrome]');
+  console.error('用法: node test/e2e-presenter.mjs <deck.html> [--chrome /path/to/chrome] [--no-sandbox]');
   process.exit(2);
 }
 const deckPath = resolve(deckArg);
@@ -113,7 +119,9 @@ const proc = spawn(chrome, [
   '--headless=new', `--remote-debugging-port=${debugPort}`,
   `--user-data-dir=/tmp/heige-presenter-e2e-${debugPort}`,
   '--disable-popup-blocking', '--no-first-run', '--no-default-browser-check',
-  '--disable-gpu', '--window-size=1440,900', 'about:blank',
+  '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1440,900',
+  ...(noSandbox ? ['--no-sandbox'] : []),
+  'about:blank',
 ], { stdio: 'ignore' });
 
 let browserReady = false;
@@ -188,6 +196,21 @@ await step('翻两页，演讲者与观众屏页码一致', async () => {
   return `双端都在第 ${local.idx + 1} 页`;
 });
 
+await step('一次按键只翻一页，主 deck 跟着同步', async () => {
+  // 锁住「本层 window 捕获先于 deck window 冒泡」这个隐式约定：
+  // 顺序一旦反过来，一次按键会翻两页，这条立刻红。
+  await page.eval("document.getElementById('he-p-first').click()");
+  await sleep(500);
+  const before = (await st()).idx;
+  await press('ArrowRight');
+  await sleep(500);
+  const after = (await st()).idx;
+  need(after === before + 1, `一次按键翻了 ${after - before} 页`);
+  const deckIdx = await page.eval("[...document.querySelectorAll('.slide')].findIndex(s => s.classList.contains('is-active'))");
+  need(deckIdx === after, `主 deck 停在第 ${deckIdx + 1} 页，演讲者停在第 ${after + 1} 页`);
+  return `第 ${before + 1} 页 → 第 ${after + 1} 页，主 deck 同页`;
+});
+
 await step('宫格选页后回到预览并跳页', async () => {
   await press('Escape');
   await sleep(400);
@@ -211,6 +234,19 @@ await step('计时能走、能停', async () => {
   const label = await page.eval("document.getElementById('he-p-timer-toggle').textContent");
   need(label.includes('继续计时'), `暂停后按钮是「${label}」`);
   return `${clock} → ${label}`;
+});
+
+await step('备注按 data-slide-id 存进 localStorage', async () => {
+  await page.eval(`(() => {
+    const ed = document.getElementById('he-p-note-editor');
+    ed.value = 'e2e 备注';
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await sleep(700); // 备注保存有 300ms 防抖，等它落盘
+  const key = await page.eval("Object.keys(localStorage).find((k) => k.startsWith('heige-ppt-note:')) || ''");
+  need(key, 'localStorage 里没有备注键');
+  need(/slide-\d+$/.test(key), `备注键没带页面 id: ${key}`);
+  return key.slice(-24);
 });
 
 await step('退出后观众屏收尾、主舞台恢复', async () => {
