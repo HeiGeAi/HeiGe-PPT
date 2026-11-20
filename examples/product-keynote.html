@@ -324,9 +324,30 @@
   var roots = isDeck ? slides : [].slice.call(document.querySelectorAll('.page'));
   if (!roots.length) return;
   var KEY = 'heige-edit::' + location.pathname;
-  var editing = false, saveTimer = null;
+  var editing = false, saveTimer = null, revision = 0;
+  var database = new Promise(function(resolve, reject){
+    var request = indexedDB.open('heige-edit', 1);
+    request.onupgradeneeded = function(){ request.result.createObjectStore('decks'); };
+    request.onsuccess = function(){
+      var db = request.result;
+      db.onversionchange = function(){ db.close(); };
+      resolve(db);
+    };
+    request.onerror = function(){ reject(request.error); };
+    request.onblocked = function(){ reject(new Error('打开保存区超时')); };
+  });
 
-  // ---- inject chrome styles (all screen-only; print hides everything) ----
+  function storedDeck(mode, operation){
+    return database.then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction('decks', mode);
+        var request = operation(tx.objectStore('decks'));
+        tx.oncomplete = function(){ resolve(request.result); };
+        tx.onabort = function(){ reject(tx.error || new Error('保存操作已中断')); };
+      });
+    });
+  }
+
   var css = document.createElement('style'); css.className = 'he-style';
   css.textContent =
     '.he-toolbar{position:fixed;right:16px;bottom:56px;z-index:99999;display:flex;gap:6px;align-items:center;'+
@@ -342,7 +363,6 @@
     '@media print{.he-toolbar{display:none!important}[data-he-field]{outline:none!important;background:none!important}}';
   document.head.appendChild(css);
 
-  // ---- collect editable leaf fields (block-ish elements with direct text, no editable ancestor) ----
   var SEL = 'h1,h2,h3,h4,h5,h6,p,li,td,th,div,span,a,blockquote,figcaption,cite';
   function hasDirectText(el){
     for (var i=0;i<el.childNodes.length;i++){ var n=el.childNodes[i];
@@ -354,53 +374,76 @@
       [].slice.call(root.querySelectorAll(SEL)).forEach(function(el){
         if (el.hasAttribute('data-he-field')) return;
         if (!hasDirectText(el)) return;
-        if (el.closest('[data-he-field]')) return;       // skip if inside an existing field
+        if (el.closest('[data-he-field]')) return;
         el.setAttribute('data-he-field','');
       });
     });
   }
 
-  // ---- localStorage save / restore ----
   function save(){
-    // 存前先剥掉 contenteditable/spellcheck，否则刷新后字段在放映态仍可编辑、还会吞掉方向键翻页
-    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){
-      var t = r.cloneNode(true);
-      [].slice.call(t.querySelectorAll('[contenteditable]')).forEach(function(n){
-        n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    var current = revision;
+    var content = roots.map(function(root){
+      var clone = root.cloneNode(true);
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function(field){
+        field.removeAttribute('contenteditable');
+        field.removeAttribute('spellcheck');
       });
-      return t.innerHTML;
-    }))); } catch(e){}
-    status('已保存');
+      return clone.innerHTML;
+    });
+    storedDeck('readwrite', function(store){ return store.put(content, KEY); }).then(function(){
+      if (current === revision) status('已保存');
+    }, function(){
+      if (current === revision) status('保存失败，请下载 HTML', true);
+    });
   }
-  function restore(){
-    try {
-      var data = JSON.parse(localStorage.getItem(KEY));
-      if (data && data.length === roots.length){ data.forEach(function(h,i){ roots[i].innerHTML = h; }); return true; }
-    } catch(e){}
-    return false;
-  }
-  function status(t){ var s=document.querySelector('.he-status'); if(s){ s.textContent=t; clearTimeout(s.__t); s.__t=setTimeout(function(){s.textContent='';},1600);} }
 
-  // ---- edit mode toggle ----
+  async function restore(){
+    var data, available = true;
+    try {
+      data = await storedDeck('readonly', function(store){ return store.get(KEY); });
+    } catch(e){ available = false; }
+    if (!Array.isArray(data)){
+      try { data = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+    }
+    if (Array.isArray(data) && data.length === roots.length && data.every(function(html){ return typeof html === 'string'; })){
+      data.forEach(function(html, i){ roots[i].innerHTML = html; });
+    }
+    return available;
+  }
+
+  function status(text, sticky){
+    var label = document.querySelector('.he-status');
+    if (!label) return;
+    label.textContent = text;
+    clearTimeout(label.__t);
+    if (!sticky) label.__t = setTimeout(function(){ label.textContent = ''; }, 1600);
+  }
+
   function setEdit(on){
     editing = on;
     document.body.classList.toggle('he-editing', on);
     [].slice.call(document.querySelectorAll('[data-he-field]')).forEach(function(f){
       if (on){ f.setAttribute('contenteditable','true'); f.setAttribute('spellcheck','false'); }
-      else { f.removeAttribute('contenteditable'); }
+      else { f.removeAttribute('contenteditable'); f.removeAttribute('spellcheck'); }
     });
     var b=document.querySelector('[data-act=edit]');
     if(b){ b.textContent = on ? '完成' : '编辑'; b.classList.toggle('he-on', on); }
-    if(!on){ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+    if (!on){
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      if (saveTimer !== null) save();
+    }
   }
 
-  // ---- export: PDF (native print) ----
   function exportPDF(){ setEdit(false); setTimeout(function(){ window.print(); }, 60); }
 
-  // ---- export: standalone edited HTML ----
   function downloadHTML(){
     setEdit(false);
     var clone = document.documentElement.cloneNode(true);
+    // 连另外两层的运行时覆盖物一并剥掉：现场演示层的 lightbox 遮罩 / 自建工具栏，
+    // 演讲者层的视图壳 / 入口按钮 / 样式块。否则放大图开着时下载，导出文件会带一个关不掉的全屏遮罩；
+    // 工具栏和「演讲模式」按钮也会被重复注入。
     [].slice.call(clone.querySelectorAll('.he-toolbar,.he-style,.lb,.he-showbar,#he-presenter,#he-presenter-btn,#he-presenter-style')).forEach(function(n){ n.remove(); });
     [].slice.call(clone.querySelectorAll('[data-he-field]')).forEach(function(n){
       n.removeAttribute('data-he-field'); n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
@@ -416,13 +459,24 @@
     status('已下载');
   }
 
-  function reset(){
+  async function reset(){
     if (!confirm('复位会清掉你在这份上做的所有修改，确定吗？')) return;
-    try { localStorage.removeItem(KEY); } catch(e){}
-    location.reload();
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    revision++;
+    setEdit(false);
+    var buttons = document.querySelectorAll('.he-toolbar button');
+    buttons.forEach(function(button){ button.disabled = true; });
+    try {
+      await storedDeck('readwrite', function(store){ return store.delete(KEY); });
+      localStorage.removeItem(KEY);
+      location.reload();
+    } catch(e){
+      status('复位失败，改动仍在此页', true);
+      buttons.forEach(function(button){ button.disabled = false; });
+    }
   }
 
-  // ---- build toolbar ----
   function buildToolbar(){
     var bar = document.createElement('div'); bar.className='he-toolbar';
     bar.innerHTML =
@@ -430,10 +484,10 @@
       '<button data-act="pdf">导出 PDF</button>'+
       '<button data-act="html">下载 HTML</button>'+
       '<button data-act="reset">复位</button>'+
-      '<span class="he-status"></span>';
+      '<span class="he-status" role="status"></span>';
     document.body.appendChild(bar);
     bar.addEventListener('click', function(e){
-      e.stopPropagation();                       // never let deck nav fire from toolbar
+      e.stopPropagation();
       var b = e.target.closest('button'); if(!b) return;
       var act = b.getAttribute('data-act');
       if (act==='edit') setEdit(!editing);
@@ -443,7 +497,6 @@
     });
   }
 
-  // ---- plain-text paste + key handling + deck-nav suppression ----
   function insertText(t){
     if (document.execCommand) { document.execCommand('insertText', false, t); return; }
     var sel = window.getSelection(); if(!sel.rangeCount) return;
@@ -459,20 +512,27 @@
     var ae = document.activeElement;
     if (!(ae && ae.isContentEditable)) return;
     if (e.key && (e.key.indexOf('Arrow')===0 || e.key.indexOf('Page')===0 || e.key==='Home' || e.key==='End' || e.key===' ' || e.key==='Spacebar'))
-      e.stopPropagation();                       // keep deck nav from grabbing cursor keys while editing
+      e.stopPropagation();
     if (e.key==='Enter'){ e.preventDefault(); if(document.execCommand) document.execCommand('insertLineBreak'); }
     if (e.key==='Backspace' && ae.textContent.replace(/\u200B/g,'').trim()==='') e.preventDefault();
   }, true);
   document.addEventListener('click', function(e){
+    // 编辑态下吞掉除工具栏外的一切点击，别让 deck 的「点半屏翻页」在你点空白/拖选时翻走当前页
     if (editing && !(e.target.closest && e.target.closest('.he-toolbar'))) e.stopPropagation();
   }, true);
 
-  // ---- boot ----
-  restore();
-  markFields();
-  buildToolbar();
-  roots.forEach(function(r){
-    r.addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer=setTimeout(save, 400); });
+  restore().then(function(available){
+    markFields();
+    buildToolbar();
+    if (!available) status('自动保存不可用，请下载 HTML', true);
+    roots.forEach(function(root){
+      root.addEventListener('input', function(){
+        revision++;
+        status('正在保存', true);
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 400);
+      });
+    });
   });
 })();
 </script>

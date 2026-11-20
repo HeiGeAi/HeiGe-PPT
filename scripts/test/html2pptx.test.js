@@ -68,7 +68,7 @@ test("transparent slide inherits the rendered stage background", async () => {
 html,body{margin:0;width:100%;height:100%;background:#111}
 .stage{position:relative;width:1280px;height:720px;background:#0A0A0A}
 .slide{position:absolute;inset:0;background:transparent;color:#F4EFE6}
-h1{margin:100px;font:700 64px Arial}
+h1{margin:100px;font:700 64px Arial,sans-serif}
 </style></head><body><main class="stage"><section class="slide"><h1>Dark deck</h1></section></main></body></html>`);
 
     const converted = spawnSync(process.execPath, [CONVERTER, deck, output], {
@@ -85,6 +85,7 @@ h1{margin:100px;font:700 64px Arial}
       /<p:bg>[\s\S]*?<a:srgbClr val="0A0A0A"/,
       "exported slide did not preserve the stage background",
     );
+    assert.match(slideXml, /<a:latin typeface="微软雅黑"/, "Arial with a sans-serif fallback stays sans-serif");
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -199,6 +200,66 @@ h1{margin:100px;font:700 64px Arial}
     assert.ok(elapsed < 12_000, `converter waited ${elapsed}ms for the remote stylesheet`);
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("the editable layer saves and restores a deck with more than 5 MiB of embedded media", { timeout: 30_000 }, async () => {
+  const { chromium } = require("playwright-core");
+  const { pathToFileURL } = require("node:url");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "heige-editable-"));
+  let browser;
+  try {
+    const doc = fs.readFileSync(path.join(ROOT, "../references/editable-layer.md"), "utf8");
+    const layer = doc.match(/<!-- ===== HeiGe 可编辑层[^]*?<\/script>/)[0];
+    const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG9sAAAAASUVORK5CYII=", "base64");
+    const image = Buffer.concat([pixel, Buffer.alloc(4 * 1024 * 1024)]).toString("base64");
+    const deck = path.join(tmp, "large.html");
+    fs.writeFileSync(deck, '<!doctype html><meta charset="utf-8"><body><section class="slide"><p>原稿</p>'
+      + '<img src="data:image/png;base64,' + image + '"></section>' + layer + '</body>');
+
+    browser = await chromium.launch({ executablePath: findBrowser(chromium), headless: true });
+    const page = await browser.newPage();
+    const url = pathToFileURL(deck).href;
+    await page.goto(url);
+    const edit = page.locator("[data-act=edit]");
+    const paragraph = page.locator(".slide p");
+
+    await edit.waitFor();
+    await page.evaluate(() => {
+      localStorage.setItem("heige-edit::" + location.pathname, JSON.stringify(["<p>旧版保存</p>"]));
+    });
+    await page.reload();
+    await edit.waitFor();
+    assert.equal(await paragraph.textContent(), "旧版保存");
+    await page.evaluate(() => localStorage.removeItem("heige-edit::" + location.pathname));
+    await page.reload();
+
+    await edit.click();
+    await paragraph.fill("保存后的新版");
+    await page.waitForFunction(() => document.querySelector(".he-status").textContent === "已保存");
+    await page.reload();
+    await edit.waitFor();
+    assert.equal(await paragraph.textContent(), "保存后的新版");
+    assert.equal(await paragraph.getAttribute("contenteditable"), null);
+    assert.equal(await paragraph.getAttribute("spellcheck"), null);
+    assert.ok((await page.locator(".slide img").getAttribute("src")).length > 5 * 1024 * 1024);
+
+    page.once("dialog", dialog => dialog.accept());
+    await Promise.all([page.waitForNavigation(), page.locator("[data-act=reset]").click()]);
+    await edit.waitFor();
+    assert.equal(await paragraph.textContent(), "原稿");
+
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "indexedDB", { get() { throw new DOMException("disabled", "SecurityError"); } });
+    });
+    await page.reload();
+    await edit.click();
+    await paragraph.fill("保留这段改动");
+    await page.waitForFunction(() => document.querySelector(".he-status").textContent === "保存失败，请下载 HTML");
+    assert.equal(await paragraph.textContent(), "保留这段改动");
+  } finally {
+    await browser?.close();
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

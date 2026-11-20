@@ -11,7 +11,7 @@
 - **下载 HTML**：把当前改好的 deck 存成一个独立的 .html 文件，发给别人或留底，打开还能接着改、接着讲。
 - **复位**：清掉自己的所有改动，回到出厂内容。
 
-改动会自动存在浏览器本地（localStorage），刷新不丢。
+改动会自动存在浏览器本地（IndexedDB）。看到“已保存”后可以刷新。若提示保存失败，点击“下载 HTML”保留这次改动。之前保存在 localStorage 的改动仍可读取。
 
 ## 几条关键铁律
 
@@ -36,7 +36,29 @@
   var roots = isDeck ? slides : [].slice.call(document.querySelectorAll('.page'));
   if (!roots.length) return;
   var KEY = 'heige-edit::' + location.pathname;
-  var editing = false, saveTimer = null;
+  var editing = false, saveTimer = null, revision = 0;
+  var database = new Promise(function(resolve, reject){
+    var request = indexedDB.open('heige-edit', 1);
+    request.onupgradeneeded = function(){ request.result.createObjectStore('decks'); };
+    request.onsuccess = function(){
+      var db = request.result;
+      db.onversionchange = function(){ db.close(); };
+      resolve(db);
+    };
+    request.onerror = function(){ reject(request.error); };
+    request.onblocked = function(){ reject(new Error('打开保存区超时')); };
+  });
+
+  function storedDeck(mode, operation){
+    return database.then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction('decks', mode);
+        var request = operation(tx.objectStore('decks'));
+        tx.oncomplete = function(){ resolve(request.result); };
+        tx.onabort = function(){ reject(tx.error || new Error('保存操作已中断')); };
+      });
+    });
+  }
 
   var css = document.createElement('style'); css.className = 'he-style';
   css.textContent =
@@ -71,35 +93,59 @@
   }
 
   function save(){
-    // 存前先剥掉 contenteditable/spellcheck，否则刷新后字段在放映态仍可编辑、还会吞掉方向键翻页
-    try { localStorage.setItem(KEY, JSON.stringify(roots.map(function(r){
-      var t = r.cloneNode(true);
-      [].slice.call(t.querySelectorAll('[contenteditable]')).forEach(function(n){
-        n.removeAttribute('contenteditable'); n.removeAttribute('spellcheck');
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    var current = revision;
+    var content = roots.map(function(root){
+      var clone = root.cloneNode(true);
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function(field){
+        field.removeAttribute('contenteditable');
+        field.removeAttribute('spellcheck');
       });
-      return t.innerHTML;
-    }))); } catch(e){}
-    status('已保存');
+      return clone.innerHTML;
+    });
+    storedDeck('readwrite', function(store){ return store.put(content, KEY); }).then(function(){
+      if (current === revision) status('已保存');
+    }, function(){
+      if (current === revision) status('保存失败，请下载 HTML', true);
+    });
   }
-  function restore(){
+
+  async function restore(){
+    var data, available = true;
     try {
-      var data = JSON.parse(localStorage.getItem(KEY));
-      if (data && data.length === roots.length){ data.forEach(function(h,i){ roots[i].innerHTML = h; }); return true; }
-    } catch(e){}
-    return false;
+      data = await storedDeck('readonly', function(store){ return store.get(KEY); });
+    } catch(e){ available = false; }
+    if (!Array.isArray(data)){
+      try { data = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+    }
+    if (Array.isArray(data) && data.length === roots.length && data.every(function(html){ return typeof html === 'string'; })){
+      data.forEach(function(html, i){ roots[i].innerHTML = html; });
+    }
+    return available;
   }
-  function status(t){ var s=document.querySelector('.he-status'); if(s){ s.textContent=t; clearTimeout(s.__t); s.__t=setTimeout(function(){s.textContent='';},1600);} }
+
+  function status(text, sticky){
+    var label = document.querySelector('.he-status');
+    if (!label) return;
+    label.textContent = text;
+    clearTimeout(label.__t);
+    if (!sticky) label.__t = setTimeout(function(){ label.textContent = ''; }, 1600);
+  }
 
   function setEdit(on){
     editing = on;
     document.body.classList.toggle('he-editing', on);
     [].slice.call(document.querySelectorAll('[data-he-field]')).forEach(function(f){
       if (on){ f.setAttribute('contenteditable','true'); f.setAttribute('spellcheck','false'); }
-      else { f.removeAttribute('contenteditable'); }
+      else { f.removeAttribute('contenteditable'); f.removeAttribute('spellcheck'); }
     });
     var b=document.querySelector('[data-act=edit]');
     if(b){ b.textContent = on ? '完成' : '编辑'; b.classList.toggle('he-on', on); }
-    if(!on){ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+    if (!on){
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      if (saveTimer !== null) save();
+    }
   }
 
   function exportPDF(){ setEdit(false); setTimeout(function(){ window.print(); }, 60); }
@@ -125,10 +171,22 @@
     status('已下载');
   }
 
-  function reset(){
+  async function reset(){
     if (!confirm('复位会清掉你在这份上做的所有修改，确定吗？')) return;
-    try { localStorage.removeItem(KEY); } catch(e){}
-    location.reload();
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    revision++;
+    setEdit(false);
+    var buttons = document.querySelectorAll('.he-toolbar button');
+    buttons.forEach(function(button){ button.disabled = true; });
+    try {
+      await storedDeck('readwrite', function(store){ return store.delete(KEY); });
+      localStorage.removeItem(KEY);
+      location.reload();
+    } catch(e){
+      status('复位失败，改动仍在此页', true);
+      buttons.forEach(function(button){ button.disabled = false; });
+    }
   }
 
   function buildToolbar(){
@@ -138,7 +196,7 @@
       '<button data-act="pdf">导出 PDF</button>'+
       '<button data-act="html">下载 HTML</button>'+
       '<button data-act="reset">复位</button>'+
-      '<span class="he-status"></span>';
+      '<span class="he-status" role="status"></span>';
     document.body.appendChild(bar);
     bar.addEventListener('click', function(e){
       e.stopPropagation();
@@ -175,11 +233,18 @@
     if (editing && !(e.target.closest && e.target.closest('.he-toolbar'))) e.stopPropagation();
   }, true);
 
-  restore();
-  markFields();
-  buildToolbar();
-  roots.forEach(function(r){
-    r.addEventListener('input', function(){ clearTimeout(saveTimer); saveTimer=setTimeout(save, 400); });
+  restore().then(function(available){
+    markFields();
+    buildToolbar();
+    if (!available) status('自动保存不可用，请下载 HTML', true);
+    roots.forEach(function(root){
+      root.addEventListener('input', function(){
+        revision++;
+        status('正在保存', true);
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 400);
+      });
+    });
   });
 })();
 </script>
