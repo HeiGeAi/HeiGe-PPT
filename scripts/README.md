@@ -7,7 +7,8 @@ HeiGe-PPT 的双格式交付转换器：把一份 HeiGe-PPT 单文件 HTML deck 
 ## 用法
 
 ```bash
-npm install                          # 首次：装 pptxgenjs + playwright-core
+npm ci                               # 按锁文件安装转换器依赖
+npx --no-install playwright-core install chromium
 node html2pptx.js <deck.html> [out.pptx] [--offline]
 ```
 
@@ -89,3 +90,7 @@ node test/file-protocol.mjs examples/darktech-keynote.html  # file:// 双击打�
 `presenter-edge.mjs` 测两件容易只写在纸上没人验的事：小屏（820×620）下两个预览是否仍保持 16:9 且不超出容器；自动翻页是不是真的会翻、打开宫格时会不会暂停。
 
 `e2e-presenter.mjs` 跑九项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、一次按键只翻一页且主 deck 同步、宫格选页、计时、备注落盘、退出恢复。CI 的 `presenter` job 会跑它（Node 22 + playwright 装好的 chromium，`--chrome` 传路径、`--no-sandbox` 关沙箱）。
+
+### CSS 渐变和纹理
+
+含 CSS 背景图的页面会把图形层截图后放入 PPT，已有原生文字保留可编辑。截图失败时，转换器会报告对应页码。复杂的文字裁切、遮罩和伪元素文字请在最终 PPT 中核对。

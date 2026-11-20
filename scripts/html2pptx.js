@@ -10,7 +10,7 @@
  *   - 通用，不认版式 class。读的是渲染后的几何，对任意 HeiGe-PPT deck 都成立。
  *   - 文字一律转成原生可编辑文本框（不截图）。
  *   - 纯色块、边框、细线还原成 PPT 形状。
- *   - 复杂图形（SVG 框架图等）无法无损转 → 转成同位置的图片占位，并在控制台明确提示人工补。
+ *   - 复杂图形（CSS 渐变、纹理背景层和 SVG 框架图等）无法无损转 → 转成同位置的图片占位，并在控制台明确提示人工补。
  *     宁可诚实降级，不硬转出一个崩的图。
  *
  * 用法：
@@ -137,7 +137,7 @@ async function extract(htmlPath, { offline = false } = {}) {
   const { chromium } = require("playwright-core");
   const { pathToFileURL } = require("url");
   const exe = findBrowser(chromium);
-  if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或运行 npx playwright install chromium。");
+  if (!exe) throw new Error("找不到可用的 Chromium / Chrome。请装 Chrome，或在 scripts 目录运行 npx --no-install playwright-core install chromium。");
   const browser = await chromium.launch({ executablePath: exe, headless: true });
   try {
   const page = await browser.newPage({ viewport: { width: STAGE_W, height: STAGE_H }, deviceScaleFactor: 2 });
@@ -218,6 +218,16 @@ async function extract(htmlPath, { offline = false } = {}) {
     };
 
     const out = { texts: [], shapes: [], svgs: [], imgs: [], bg: null, dedupSkipped: 0, imgSkipped: 0 };
+    // Rasterize the graphical layer when CSS images/gradients (including pseudo-elements)
+    // cannot be represented as native shapes. Text remains independently editable.
+    const imagePaint = (el) => [null, "::before", "::after"].some(pseudo => {
+      const style = getComputedStyle(el, pseudo);
+      return style.backgroundImage && style.backgroundImage !== "none" &&
+        (!pseudo || (style.content !== "none" && style.content !== "normal"));
+    });
+    out.needsRaster = [document.body, stage, slide, ...slide.querySelectorAll("*")]
+      .some(el => visibleDeep(el, el.getBoundingClientRect()) && imagePaint(el));
+    out.rasterClip = { x: sr.left, y: sr.top, width: sr.width, height: sr.height };
     // 背景色：.slide 自身透明时回退取 .stage / body。深色 deck 常把底色画在舞台或 body 上，
     // 只读 .slide 会拿到透明 → PPT 落默认白底 → 浅色正文整页看不见。
     const transp = (c) => !c || /rgba?\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
@@ -355,6 +365,7 @@ async function extract(htmlPath, { offline = false } = {}) {
         // 截断版会把「前缀相同、后半不同」的两个框误杀一个。
         const key = Math.round(r.x) + ":" + Math.round(r.y) + ":" + runs.map(x => x.text || "↵").join("").trim();
         if (seen.has(key)) { out.dedupSkipped++; return; } seen.add(key);
+        el.setAttribute("data-he-text", "1");
         const lines = runs.filter(x => x.br).length + 1;  // <br> 行数
         out.texts.push({
           x: r.x, y: r.y, w: r.w, h: r.h, runs, lines,
@@ -409,6 +420,43 @@ async function extract(htmlPath, { offline = false } = {}) {
     }, i);
     await page.waitForTimeout(60);
     const sd = await extractOne(i);
+    if (sd.needsRaster) {
+      // Hide only text nodes represented in native PPT text runs. A CSS rule on
+      // their parent would also hide unrelated block children (buttons, labels, SVG).
+      // display:contents preserves layout, including anonymous flex text items.
+      await page.evaluate(() => {
+        const slide = document.querySelector(".slide.he-solo");
+        const nodes = new Set();
+        slide.querySelectorAll("[data-he-text]").forEach(el => {
+          el.childNodes.forEach(n => { if (n.nodeType === Node.TEXT_NODE) nodes.add(n); });
+        });
+        slide.querySelectorAll("[data-he-consumed]").forEach(el => {
+          const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          while (walk.nextNode()) nodes.add(walk.currentNode);
+        });
+        nodes.forEach(node => {
+          const wrapper = document.createElement("span");
+          wrapper.setAttribute("data-he-hidden-glyph", "1");
+          wrapper.style.cssText = "display:contents!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important";
+          node.replaceWith(wrapper);
+          wrapper.appendChild(node);
+        });
+      });
+      try {
+        const buffer = await page.screenshot({ type: "png", clip: sd.rasterClip, animations: "disabled" });
+        sd.backgroundRaster = "data:image/png;base64," + buffer.toString("base64");
+        sd.shapes = [];
+        sd.svgs = [];
+        sd.imgs = [];
+        sd.imgSkipped = 0;
+      } catch (error) {
+        throw new Error("CSS gradient/texture screenshot failed on slide " + (i + 1) + ": " + error.message);
+      } finally {
+        await page.evaluate(() => {
+          document.querySelectorAll("[data-he-hidden-glyph]").forEach(el => el.replaceWith(...el.childNodes));
+        });
+      }
+    }
     // 截本页 SVG（此刻只有本页可见，截图不会串入相邻页背景）。
     // 用 data-he-svg 标记选取，与 out.svgs 的入选口径一致，避免小图标导致下标错位。
     if (sd.svgs.length) {
@@ -468,6 +516,11 @@ function build(slidesData, outPath) {
     const s = pres.addSlide();
     const bgHex = rgbToHex(sd.bg);
     if (bgHex) s.background = { color: bgHex };
+
+    if (sd.backgroundRaster) {
+      s.addImage({ data: sd.backgroundRaster, x: 0, y: 0, w: IN_W, h: IN_H });
+      svgWarnings++;
+    }
 
     // 1) 背景块 / 边框 / 线 先铺底
     sd.shapes.forEach((sp) => {
@@ -590,7 +643,7 @@ async function main(argv = process.argv.slice(2)) {
   const { ok: svgN, failed: svgF, imgEmbedded, imgFailed } = await build(data, outPath);
   console.log("✓ 已生成:", outPath);
   if (svgN > 0) {
-    console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
+    console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（CSS 渐变、纹理背景层和 SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
     console.log("  如需在 PPT 中编辑这些图，请用 PowerPoint 的形状重画，或保留 HTML 版作为该图的可编辑源。");
   }
   if (imgEmbedded > 0) {
@@ -611,4 +664,4 @@ if (require.main === module) {
     .catch((e) => { console.error("转换失败:", e.message); process.exitCode = 1; });
 }
 
-module.exports = { findBrowser };
+module.exports = { findBrowser, mapFont, extract, build };
