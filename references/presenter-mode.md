@@ -135,7 +135,7 @@ node scripts/inject-presenter.mjs 你的deck.html
 
 ## 几条关键铁律
 
-- **所有演讲者层的 DOM 挂在 `body` 上**，绝不往 `.slide` 里塞。塞进去会被可编辑层 `restore()` 的整段 `innerHTML` 覆盖抹掉，还会被 `save()` 写进 localStorage，从此一直躺在导出的文件里。
+- **所有演讲者层的 DOM 挂在 `body` 上**，绝不往 `.slide` 里塞。塞进去会被可编辑层 `restore()` 的整段 `innerHTML` 覆盖抹掉，还会被 `save()` 写进本地编辑记录，从此一直躺在导出的文件里。
 - **覆盖物必须自带 `@media print` 隐藏**。本层入口按钮写在 `@media print{#he-presenter-btn{display:none!important}}` 里。deck 自己的打印清单只认 `.hud,.bar,.brandmark,.hint`，不会替你兜底。
 - **键盘走 window 捕获阶段先手**，处理完 `stopImmediatePropagation()`。演讲者视图里吞掉全部翻页键，否则本层 `go()` 翻一次、deck 的 window 冒泡监听再翻一次，一次按键走两页。
 - **视图内的点击必须 `stopPropagation()`**。`#he-presenter` 上挂了一个整体拦截，观众屏和预览窗各挂一个。不拦的话，点「下一页」按钮会同时撞上 deck 的「点半屏翻页」，一按退两页。

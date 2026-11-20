@@ -123,12 +123,13 @@ const isLightish = (hex) => {
 
 // ---------- 中文字体兜底：webfont 名 → PPT 安全字体 ----------
 function mapFont(family) {
-  const f = (family || "").toLowerCase();
-  if (/serif|song|宋|playfair|georgia|times/.test(f)) {
-    if (/playfair|georgia|times|serif(?!.*sc)/.test(f) && !/noto|song|宋/.test(f)) return "Georgia";
-    return "宋体";
+  const families = String(family || "").split(",").map(f => f.trim().replace(/^['"]|['"]$/g, "").toLowerCase());
+  for (const f of families) {
+    if (/^(monospace|ui-monospace|consolas|courier(?: new)?|(?:jetbrains|roboto|noto sans) mono)$/.test(f)) return "Consolas";
+    if (/^(noto serif(?: sc| tc| cjk sc| cjk tc)?|source han serif.*|songti.*|simsun|宋体|宋)$/.test(f)) return "宋体";
+    if (/^(serif|ui-serif|georgia|times(?: new roman)?|playfair display)$/.test(f)) return "Georgia";
+    if (/^(sans-serif|system-ui|ui-sans-serif|arial|helvetica(?: neue)?|inter|noto sans.*|source han sans.*|pingfang.*|microsoft yahei|微软雅黑)$/.test(f)) return "微软雅黑";
   }
-  if (/mono|consolas|courier/.test(f)) return "Consolas";
   return "微软雅黑";
 }
 
