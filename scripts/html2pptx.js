@@ -10,7 +10,7 @@
  *   - 通用，不认版式 class。读的是渲染后的几何，对任意 HeiGe-PPT deck 都成立。
  *   - 文字一律转成原生可编辑文本框（不截图）。
  *   - 纯色块、边框、细线还原成 PPT 形状。
- *   - 复杂图形（SVG 框架图等）无法无损转 → 转成同位置的图片占位，并在控制台明确提示人工补。
+ *   - 复杂图形（CSS 渐变、纹理背景层和 SVG 框架图等）无法无损转 → 转成同位置的图片占位，并在控制台明确提示人工补。
  *     宁可诚实降级，不硬转出一个崩的图。
  *
  * 用法：
@@ -166,6 +166,7 @@ async function extract(htmlPath, { offline = false } = {}) {
   await page.addStyleTag({ content: `*{transition:none!important;animation:none!important}
     .slide{transform:none!important}
     .slide.he-solo{opacity:1!important;visibility:visible!important;position:absolute!important;inset:0!important;z-index:9999!important}
+    .slide.he-need-display{display:block!important}
     .slide.he-hide{opacity:0!important;visibility:hidden!important}
     body>.he-toolbar,body>.he-showbar,body>.lb,body>.hud,body>.bar,body>.hint,
     body>.brandmark,body>.prog,body>.pgfoot,body>.toolbar{display:none!important}` });
@@ -216,7 +217,7 @@ async function extract(htmlPath, { offline = false } = {}) {
       return { x: (r.left - sr.left) * sx, y: (r.top - sr.top) * sy, w: r.width * sx, h: r.height * sy, raw: r };
     };
 
-    const out = { texts: [], shapes: [], svgs: [], bg: null, dedupSkipped: 0 };
+    const out = { texts: [], shapes: [], svgs: [], imgs: [], bg: null, dedupSkipped: 0, imgSkipped: 0 };
     // Rasterize the graphical layer when CSS images/gradients (including pseudo-elements)
     // cannot be represented as native shapes. Text remains independently editable.
     const imagePaint = (el) => [null, "::before", "::after"].some(pseudo => {
@@ -233,6 +234,18 @@ async function extract(htmlPath, { offline = false } = {}) {
     out.bg = cs(slide).backgroundColor;
     if (transp(out.bg)) out.bg = cs(stage).backgroundColor;
     if (transp(out.bg)) out.bg = cs(document.body).backgroundColor;
+    if (transp(out.bg)) {
+      // 渐变或背景图画在 background-image 里，backgroundColor 拿到的是透明。
+      // 不退一步的话 PPT 会落白底，深色渐变页上的浅色正文整页看不见。
+      // 这里取 gradient 里第一个颜色兜底，并在 main 里提示底色是估算的。
+      for (const el of [slide, stage, document.body]) {
+        const gi = cs(el).backgroundImage;
+        if (gi && gi !== "none") {
+          const m = gi.match(/(?:rgba?|hsla?)\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+          if (m) { out.bg = m[0]; out.bgFromImage = true; break; }
+        }
+      }
+    }
 
       // 背景色块 / 边框 / 细线：非文字、有可见背景或边框的块
       const blockSel = "div,section,span,header,aside,figure,hr";
@@ -266,13 +279,43 @@ async function extract(htmlPath, { offline = false } = {}) {
       // SVG：记录位置 → 转图占位。给入选 svg 打标记，保证后续截图与几何数组下标一一对应。
       slide.querySelectorAll("svg").forEach((el) => {
         const r = rectOf(el);
-        if (r.w > 8 && r.h > 8) { el.setAttribute("data-he-svg", "1"); out.svgs.push({ x: r.x, y: r.y, w: r.w, h: r.h }); }
+        if (r.w <= 8 || r.h <= 8) return;
+        // 隐藏的 svg（入场动画未触发、display:none 容器里的）不该入选，否则会截到空白，
+        // 或者截图失败后在 PPT 里平白多一个「图形转换失败」的红框。
+        if (!visibleDeep(el, r.raw)) return;
+        el.setAttribute("data-he-svg", "1");
+        out.svgs.push({ x: r.x, y: r.y, w: r.w, h: r.h });
       });
+
+      // <img> 和 <canvas>：走同一条截图通道，不读原文件。
+      // 这样 data URI / 相对路径 / 跨域 URL 一视同仁，也不担心图片没加载完拿到空数据。
+      //
+      // 关键：每个元素打一个唯一序号，截图阶段按序号取，不能靠下标对齐。
+      // img 和 canvas 是两次 querySelectorAll 收集的，顺序和文档顺序不一致；
+      // 截图用 [data-he-shot] 拿到的是文档顺序，混排时会张冠李戴。
+      let shotSeq = 0;
+      const collectShot = (el) => {
+        const r = rectOf(el);
+        if (r.w <= 8 || r.h <= 8) return;
+        if (!visibleDeep(el, r.raw)) return;
+        const seq = shotSeq++;
+        el.setAttribute("data-he-shot", String(seq));
+        out.imgs.push({ x: r.x, y: r.y, w: r.w, h: r.h, seq });
+      };
+
+      slide.querySelectorAll("img").forEach((el) => {
+        // 没加载成功的图不截，否则会得到一张空白图冒充正常内容
+        if (!el.complete || !el.naturalWidth) { out.imgSkipped++; return; }
+        collectShot(el);
+      });
+      slide.querySelectorAll("canvas").forEach(collectShot);
 
       // 文字：取「自身带直接文字」的块。含 block 级子元素的容器不整段取，
       // 而是用 Range 精确量取「该块自身直接文字」的几何，各成一框，
       // 避免 line-height / display:block 子元素折行导致的几何错位与重叠，也不丢失直接文字。
-      const textSel = "h1,h2,h3,h4,h5,h6,p,li,span,div,a,b,strong,em,i,blockquote,figcaption,cite,td,th";
+      // section/header/aside/figure 必须进来：它们在 blockSel 里，带直接文字时会被形状通道
+      // 排除掉（hasDirectText 直接 return），文字通道又不含它们，那段文字就两头落空。
+      const textSel = "h1,h2,h3,h4,h5,h6,p,li,span,div,a,b,strong,em,i,blockquote,figcaption,cite,td,th,section,header,aside,figure";
       const seen = new Set();
       const hasBlockChild = (el) => {
         for (const c of el.children) {
@@ -363,8 +406,16 @@ async function extract(htmlPath, { offline = false } = {}) {
     await page.evaluate((i) => {
       const slides = [...document.querySelectorAll(".slide")];
       slides.forEach((s, k) => {
-        s.classList.remove("he-solo", "he-hide");
-        s.classList.add(k === i ? "he-solo" : "he-hide");
+        s.classList.remove("he-solo", "he-hide", "he-need-display");
+        if (k === i) {
+          // 有的 deck 用 display:none 切页（而不是 opacity/visibility）。这类页
+          // getBoundingClientRect 全是 0，量不到任何东西，整页会变成空白 PPT。
+          // 只对确认是 none 的那页补 display，不碰 flex/grid 布局的页面。
+          if (getComputedStyle(s).display === "none") s.classList.add("he-need-display");
+          s.classList.add("he-solo");
+        } else {
+          s.classList.add("he-hide");
+        }
       });
     }, i);
     await page.waitForTimeout(60);
@@ -396,6 +447,8 @@ async function extract(htmlPath, { offline = false } = {}) {
         sd.backgroundRaster = "data:image/png;base64," + buffer.toString("base64");
         sd.shapes = [];
         sd.svgs = [];
+        sd.imgs = [];
+        sd.imgSkipped = 0;
       } catch (error) {
         throw new Error("CSS gradient/texture screenshot failed on slide " + (i + 1) + ": " + error.message);
       } finally {
@@ -415,6 +468,19 @@ async function extract(htmlPath, { offline = false } = {}) {
         } catch (e) { sd.svgs[j].data = null; }
       }
     }
+    // 截本页 <img>/<canvas>：按渲染结果截图，不读原文件。
+    // 用 JPEG 而不用 PNG：照片类内容 PNG 无损压不动，一张全屏照片就能让 PPTX 涨到几 MB。
+    // 这里截的是「渲染后的画面」，本来就带着页面底色，不需要 alpha，JPEG 88 在视觉上看不出差别。
+    if (sd.imgs.length) {
+      for (const im of sd.imgs) {
+        try {
+          const handle = await page.$(`.slide.he-solo [data-he-shot="${im.seq}"]`);
+          if (!handle) { im.data = null; continue; }
+          const buf = await handle.screenshot({ type: "jpeg", quality: 88 });
+          im.data = "data:image/jpeg;base64," + buf.toString("base64");
+        } catch (e) { im.data = null; }
+      }
+    }
     slidesData.push(sd);
   }
 
@@ -422,6 +488,14 @@ async function extract(htmlPath, { offline = false } = {}) {
   const dedupSkipped = slidesData.reduce((n, sd) => n + (sd.dedupSkipped || 0), 0);
   if (dedupSkipped > 0) {
     console.warn(`⚠ 提示：有 ${dedupSkipped} 个文本框因「同位置同文本」被去重跳过，请人工确认是否有叠层内容被丢弃。`);
+  }
+  const imgSkipped = slidesData.reduce((n, sd) => n + (sd.imgSkipped || 0), 0);
+  if (imgSkipped > 0) {
+    console.warn(`⚠ 注意：有 ${imgSkipped} 张图片没能加载成功（相对路径 404、离线模式拦截、或懒加载未触发），已跳过，不会出现在 PPT 里。`);
+  }
+  const bgFromImage = slidesData.filter((sd) => sd.bgFromImage).length;
+  if (bgFromImage > 0) {
+    console.warn(`⚠ 提示：有 ${bgFromImage} 页的底色是渐变或背景图，PPT 里只能取第一个颜色近似，不是原样渐变。`);
   }
 
   return slidesData;
@@ -437,7 +511,7 @@ function build(slidesData, outPath) {
   pres.author = "HeiGe-PPT";
   pres.title = path.basename(outPath, ".pptx");
 
-  let svgWarnings = 0, svgFailed = 0;
+  let svgWarnings = 0, svgFailed = 0, imgEmbedded = 0, imgFailed = 0;
   slidesData.forEach((sd) => {
     const s = pres.addSlide();
     const bgHex = rgbToHex(sd.bg);
@@ -476,6 +550,20 @@ function build(slidesData, outPath) {
         s.addText("图形转换失败，请人工补", { x: px(sv.x), y: px(sv.y), w: px(sv.w), h: px(sv.h),
           align: "center", valign: "middle", fontSize: 9, color: "C0392B" });
         svgFailed++;
+      }
+    });
+
+    // 2.5) <img>/<canvas>：按渲染结果嵌入，位置与尺寸对齐原样
+    sd.imgs.forEach((im) => {
+      if (im.data) {
+        s.addImage({ data: im.data, x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h) });
+        imgEmbedded++;
+      } else {
+        s.addShape(pres.shapes.RECTANGLE, { x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h),
+          fill: { type: "none" }, line: { color: "C0392B", width: 1, dashType: "dash" } });
+        s.addText("图片转换失败，请人工补", { x: px(im.x), y: px(im.y), w: px(im.w), h: px(im.h),
+          align: "center", valign: "middle", fontSize: 9, color: "C0392B" });
+        imgFailed++;
       }
     });
 
@@ -537,7 +625,7 @@ function build(slidesData, outPath) {
     });
   });
 
-  return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed }));
+  return pres.writeFile({ fileName: outPath }).then(() => ({ ok: svgWarnings, failed: svgFailed, imgEmbedded, imgFailed }));
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -552,14 +640,20 @@ async function main(argv = process.argv.slice(2)) {
   const data = await extract(htmlPath, { offline });
   if (offline) console.log("→ 离线模式：已拦截全部非 file:// 网络请求");
   console.log(`→ 解析到 ${data.length} 页，开始生成可编辑 PPTX …`);
-  const { ok: svgN, failed: svgF } = await build(data, outPath);
+  const { ok: svgN, failed: svgF, imgEmbedded, imgFailed } = await build(data, outPath);
   console.log("✓ 已生成:", outPath);
   if (svgN > 0) {
-    console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（CSS 渐变/纹理背景层、SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
+    console.log(`\n⚠ 提示：本 deck 有 ${svgN} 处复杂图形（CSS 渐变、纹理背景层和 SVG 框架图等）以图片形式嵌入 PPT，无法在 PPT 里编辑。`);
     console.log("  如需在 PPT 中编辑这些图，请用 PowerPoint 的形状重画，或保留 HTML 版作为该图的可编辑源。");
   }
-  if (svgF > 0) {
-    console.log(`\n⚠ 注意：有 ${svgF} 处图形截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
+  if (imgEmbedded > 0) {
+    console.log(`\n→ 已嵌入 ${imgEmbedded} 张图片 / 画布（按渲染结果截图，位置与尺寸对齐原页面）。`);
+  }
+  if (svgF > 0 || imgFailed > 0) {
+    const parts = [];
+    if (svgF > 0) parts.push(`${svgF} 处图形`);
+    if (imgFailed > 0) parts.push(`${imgFailed} 张图片`);
+    console.log(`\n⚠ 注意：有 ${parts.join("、")}截图失败，已在对应位置留红色虚线占位框，请人工补图。`);
   }
   return 0;
 }

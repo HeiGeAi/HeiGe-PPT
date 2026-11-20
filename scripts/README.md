@@ -7,8 +7,8 @@ HeiGe-PPT 的双格式交付转换器：把一份 HeiGe-PPT 单文件 HTML deck 
 ## 用法
 
 ```bash
-npm ci                               # 首次：按锁文件装 pptxgenjs + playwright-core
-npx --no-install playwright-core install chromium  # 安装匹配当前依赖版本的浏览器
+npm ci                               # 按锁文件安装转换器依赖
+npx --no-install playwright-core install chromium
 node html2pptx.js <deck.html> [out.pptx] [--offline]
 ```
 
@@ -39,15 +39,58 @@ SVG 框架图、CSS 渐变 / 纹理这类复杂图形，PPT 原生画不出来�
 
 pptxgenjs 依赖链里的 image-size 有 2 个 high severity DoS 漏洞（ICNS / JXL / HEIF 解析死循环，GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq），上游暂无修复版。本工具嵌入的图来自 playwright 对自家 deck 的截图，不解析外部不可信图片，实际可利用性低；CI 的 npm audit 已调到 `--audit-level=critical`，上游出修复版后随依赖升级消化。**勿用本工具转换内嵌不可信图片的来源不明 deck。**
 
-安装或更新依赖后，在 `scripts` 目录运行 `npx --no-install playwright-core install chromium`，使用当前项目的 Playwright 版本安装对应 Chromium。测试或转换遇到浏览器关闭超时，也应先检查版本是否匹配。需要隔离下载目录时，在安装和运行命令中使用相同的 `PLAYWRIGHT_BROWSERS_PATH`。
+没有任何浏览器时，跑一次 `npx playwright install chromium` 即可。
 
+---
 
-### CSS gradient / texture fallback
+# scripts/inject-presenter.mjs
 
-When a visible slide, its stage/body background, or a visible element (including
-::before/::after) uses background-image, the converter captures the complete
-graphical layer at the original stage size. Native text stays editable; the
-background graphics become one PNG to preserve their paint order. The CLI reports
-this raster downgrade. Screenshot failures stop conversion with a slide-numbered
-error instead of silently omitting the paint. Complex text clipping/masks and
-pseudo-element text are not guaranteed editable; inspect the generated slide.
+给一份 deck 装上演讲者层（演讲者屏看备注 + 观众屏同步）。契约见 `references/presenter-mode.md`。
+
+## 用法
+
+```bash
+node inject-presenter.mjs <deck.html>            # 装上 / 刷新
+node inject-presenter.mjs <deck.html> --dry-run  # 只看会改什么，不写盘
+```
+
+跑完要做一件事：打开 deck，补 `SPEAKER_NOTES` 里的 `purpose` / `talk` / `transition`。骨架会把 id 和标题对好，内容得人来写。
+
+## 它改什么
+
+1. 给每个 `<section class="slide">` 补 `data-slide-id` 和 `data-title`
+2. 没有备注就插一份 `SPEAKER_NOTES` 骨架，条数与 id 跟页面一一对齐
+3. 把 `assets/presenter-layer.html` 贴到 `</body>` 前（已装则整段替换）
+4. deck 装了可编辑层时，把它「下载 HTML」的清理选择器补上本层三个 id
+
+幂等：反复跑只刷新运行时片段，不会叠出第二份。
+
+## scripts/validate-presenter-mode.mjs
+
+静态校验：页面身份齐不齐、备注字段全不全、运行时片段装没装对、总时长有没有超标。
+
+```bash
+node validate-presenter-mode.mjs <deck.html> [--target-minutes 30] [--strict]
+```
+
+## 测试
+
+```bash
+node --test test/presenter.test.js                           # 注入器回归，5 条，不需要浏览器
+node test/e2e-presenter.mjs examples/darktech-keynote.html  # 演讲者层实测，9 项，要本机 Chrome
+node test/three-layer.mjs                                   # 三层共存实测，7 项，要本机 Chrome
+node test/presenter-edge.mjs examples/campus-talk.html      # 边界用例，6 项：小屏布局 + 自动翻页
+node test/file-protocol.mjs examples/darktech-keynote.html  # file:// 双击打开，7 项
+```
+
+`three-layer.mjs` 现场组装一份三层 deck（可编辑层 + 现场演示层 + 演讲者层），验证三层不打架、编辑态点击不翻页、lightbox 打开时方向键只关图、演讲者视图里 F 是冻结不是全屏。它顺带验证「`references/live-show-layer.md` 的代码块贴进 deck 就能用」这个前提。
+
+`file-protocol.mjs` 测最常见的打开方式：双击 HTML（`file://` 协议）。这个场景下 origin 是 null，localStorage 可能被限制、iframe 加载 file:// URL 可能受同源策略影响、BroadcastChannel 行为不确定，只能靠 postMessage 直连兜底。七项覆盖装载、localStorage、进视图、预览跟随、观众窗、双端同步、备注落盘。
+
+`presenter-edge.mjs` 测两件容易只写在纸上没人验的事：小屏（820×620）下两个预览是否仍保持 16:9 且不超出容器；自动翻页是不是真的会翻、打开宫格时会不会暂停。
+
+`e2e-presenter.mjs` 跑九项核心链路：入口就位、进演讲者视图、观众窗同步、双端翻页一致、一次按键只翻一页且主 deck 同步、宫格选页、计时、备注落盘、退出恢复。CI 的 `presenter` job 会跑它（Node 22 + playwright 装好的 chromium，`--chrome` 传路径、`--no-sandbox` 关沙箱）。
+
+### CSS 渐变和纹理
+
+含 CSS 背景图的页面会把图形层截图后放入 PPT，已有原生文字保留可编辑。截图失败时，转换器会报告对应页码。复杂的文字裁切、遮罩和伪元素文字请在最终 PPT 中核对。

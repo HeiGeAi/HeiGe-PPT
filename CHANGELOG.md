@@ -2,6 +2,149 @@
 
 本项目所有重要变更记录于此。
 
+## [1.5.5] - 2026-11-06
+
+用本地 Kimi（k3）做了一次独立审计，6 条发现逐条复现核实，全部属实，全部修掉。
+
+### 修复
+- **`<img>` 与 `<canvas>` 截图张冠李戴（我上一版引入的）**。收集时先 img 后 canvas 两次 querySelectorAll，
+  截图时却按 `[data-he-img]` 拿文档顺序，同一页里 canvas 排在 img 前面时，两张图的截图会对调。
+  实测：左侧 canvas 的绿色内容被贴到右侧 img 的位置上。改成给每个元素打唯一 `data-he-shot` 序号，
+  截图按序号取，不再依赖顺序。
+- **`<header>` / `<section>` / `<aside>` / `<figure>` 里的直接文字从 PPT 里彻底消失**。这四个标签在
+  形状通道里被 `hasDirectText` 排除，文字通道的选择器又不含它们，两头落空。页眉、侧注、引文这类
+  用语义标签写的文字会整段不见。已把它们加进文字通道的选择器。
+- **`display:none` 切页的 deck 转出空白页**。这类页几何全是 0，量不到任何元素，整页只有背景色，
+  而且零警告。现在逐页隔离时会检测当前页的 computed display，是 none 就临时恢复，不改 flex/grid 页。
+  实测三页 deck 从「1 页有内容」修到「3 页都有内容」。
+- **没加载成功的图片静默消失**。`imgSkipped` 这个计数之前埋了但从没被读过，图丢了控制台一片安静。
+  现在会报「有 N 张图片没能加载成功」。
+- **渐变/背景图页的底色会落成白底**。`backgroundColor` 对渐变返回透明，回退链读不到任何颜色，
+  深色渐变页上的浅色正文在 PPT 里整页看不见。现在退一步取 `background-image` 里的第一个颜色兜底，
+  并提示「底色是近似值，不是原样渐变」。
+- **隐藏的 SVG 会入选并产生误报红框**。img 和 canvas 都过了 `visibleDeep`，唯独 SVG 只查宽高。
+  opacity:0 或未入场的 SVG 会被选中，截图截到空白或失败，PPT 里平白多一个「图形转换失败」。
+
+### 验证
+- 三条复现用例（canvas 混排、语义标签文字、display 切页）修后全部通过，渐变页底色从白底变成 `0A1628`。
+- 回归：转换器测试 10/10、保真 6/6、release fixture 1/1；6 份样例页数与形状数与修复前完全一致。
+- 视觉核对：语义标签页的四段文字位置与颜色都正确落进 PPT。
+
+## [1.5.4] - 2026-11-06
+
+一次「假装第一次用这个 skill」的验收暴露出来的问题。验收方式是照着 SKILL.md 从零做一份 deck，
+结果撞上一个会直接毁掉交付物的 bug。
+
+### 修复
+- **转换器不再静默丢掉 `<img>` 和 `<canvas>`**。此前只有内联 `<svg>` 会转成图片，`<img>`（
+  base64 内嵌、相对路径、远程 URL 都一样）被完全丢弃，控制台一句提示都没有。表现是：按规格
+  用截图做的演示页，转成 PPTX 后整块图消失、只剩标题，交付给客户前一天才会发现。
+  现在 `<img>`、`<canvas>`、`<svg>` 走同一条截图通道，按渲染结果嵌入，位置尺寸对齐原页面。
+  没加载成功的图不会被截成透明 PNG 冒充正常图片，会留红色虚线占位框并报数。
+- **`e2e-presenter.mjs` 的备注键断言不再假定 `slide-NN` 命名**。文档推荐语义 slug
+  （`proof`、`pricing`），按文档改完 id 后这条断言会失败，反过来逼人改回序号。现在按当前页的
+  真实 `data-slide-id` 比对。
+- **注入器的标题提取范围放宽**。此前只认 `h1`-`h3`，纯数字页（大数字做主张那种）取不到标题，
+  备注标题退化成「第 4 页」。现在依次退：标题标签 → 常见版式容器类 → 页内最长的一段文字。
+  `annual-review` 这类样例从「部分页有 title」变成 13 页全覆盖。
+
+### 文档
+- `presenter-mode.md`：写清 `--target-minutes` 的真实规则（超过目标的 90% 报 error，低于 55% 报
+  warning），此前只写「对得上」，实际 90% 是硬上限。
+- `deck-production-spec.md` 新增「导出 PPTX 的保真边界」一节：字体只留字族不留字体本身、
+  描边字/渐变字/混合模式不支持、`<img>`/`<canvas>` 截图嵌入不可编辑、复杂 SVG 转图片。
+  这些都是给客户交 PPTX 前该主动说明的事。
+
+### 验证
+- 新增的图片通道：造一份含 base64 PNG `<img>` + 内联 `<svg>` 的 deck，转换后 2 张图都在，
+  PowerPoint 渲染位置尺寸正确。
+- 回归：转换器测试 10/10、保真测试 6/6、release fixture 1/1；6 份样例转出的页数与形状数与
+  改动前完全一致（现有样例没有 `<img>`，行为零变化）。
+- 用 slug 命名的 deck 跑 e2e 9/9 通过。
+- 演讲者层 9/9、三层共存 7/7、边界 6/6、注入器单测 5/5。
+
+## [1.5.3] - 2026-11-06
+
+补一个真实会踩的坑：三层的脚本标签顺序。
+
+`SKILL.md`、`references/presenter-mode.md`、`references/live-show-layer.md` 三处都补上了「可编辑层 → 现场演示层 → 演讲者层」的顺序要求与后果。此前文档只说「能共存」，没说先后；装反不会报错，但现场演示层找不到 `.he-toolbar` 会自建一条 `.he-showbar`，页面上凭空多一条悬浮工具栏。
+
+`SKILL.md` 的「第四步：写生产级代码」另补了一条：给 deck 留 `window.__heDeck` 翻页出口，演讲者层靠它精确翻页。
+
+## [1.5.2] - 2026-11-06
+
+验收驱动的一轮加固：把「文档承诺、但没人真验」的行为补成自动化测试。
+
+### 新增
+- `scripts/test/three-layer.mjs`：现场组装一份三层 deck（可编辑层 + 现场演示层 + 演讲者层），验证共存不打架。7 项：三层脚本都加载、现场演示层挂进可编辑层工具栏、编辑态点击不翻页、lightbox 打开时方向键只关图不翻页、演讲者视图里 F 是冻结不是全屏、视图内方向键只翻一页、退出后三层仍在。它顺带验证「`references/live-show-layer.md` 的代码块贴进 deck 就能用」这个前提。
+- `scripts/test/presenter-edge.mjs`：6 项边界用例。小屏（820×620）下两个预览是否仍 16:9 且不超出容器；自动翻页是不是真的会翻、打开宫格时会不会暂停。
+- CI 的 presenter job 现在跑三步：演讲者层 9 项、三层共存 7 项、边界 6 项。
+
+### 修复
+- 测试脚本派发键盘事件的目标从 `window` 改成 `body`。真实按键的事件路径是 window→document→body，派发到 window 时 document 上的捕获监听收不到，会漏掉另外两层的反应（现场演示层的 lightbox 关图就漏在这）。
+
+### 验证
+- 本地模拟 CI 全绿：单测 5/5、演讲者层 9/9、三层共存 7/7、边界 6/6，页面异常 0。
+- 转换器首次本地真跑：6 份样例全部转出，页数一致（13/11/12/12/13/12），形状越界 0、空页 0。
+- 装了演讲者层的 campus-talk 与装层前版本转出的 PPTX 完全一致（11 页、文本零差异、图片数相同、零覆盖物泄漏）。
+- PPTX 与 deck 的文本覆盖率：5 份 99% 以上；consulting-proposal 93.8%，差额来自第 5 页 SVG 框架图按设计转成图片（转换器有明确提示）。
+
+## [1.5.1] - 2026-11-06
+
+1.5.0 发布后的加固：把演讲者层接进 CI，把样例里积压的两处文档与代码不一致抹平。
+
+### 新增
+- **CI 加 presenter job**：`scripts/test/e2e-presenter.mjs` 进流水线，用 playwright-core 装好的 chromium 跑，Node 22。这层 650 行运行时此前完全没有自动化保护，改了坏不坏只能靠人肉点。
+- **e2e 补两条断言**：按一次方向键只能翻一页且主 deck 同步（锁住「本层 window 捕获先于 deck window 冒泡」这个隐式约定）；备注按 `data-slide-id` 落进 localStorage。
+- **e2e 支持 `--no-sandbox`**，CI 容器里也能跑；`CI` 环境变量存在时自动带上。
+
+### 修复
+- **6 份样例的可编辑层与 `references/editable-layer.md` 对齐**：保存前先克隆剥掉 `contenteditable` / `spellcheck` 再写 localStorage。此前样例存的是裸 `innerHTML`，刷新后字段在放映态仍可编辑，还会吞掉方向键翻页。
+- **6 份样例的「下载 HTML」清理选择器补齐**：从 `.he-toolbar,.he-style` 扩到含 `.lb`、`.he-showbar`、`#he-presenter`、`#he-presenter-btn`、`#he-presenter-style`。此前下载的独立文件会带着现场演示层和演讲者层的运行时覆盖物。
+
+### 样例
+- `examples/campus-talk.html` 装上演讲者层，附 11 页真实备注（计划 15.6 分钟）。至此两份样例（darktech-keynote 深色 keynote、campus-talk 张扬人文演讲）都装了层，跨版式通用性有实跑证据。
+
+### 验证
+- 6 份样例逐一浏览器实测：进编辑态改字 → 读 localStorage，`contenteditable` 与 `spellcheck` 均为 0 命中。
+- 清理选择器实测命中数：装了层的 4 个（`.he-style` / `.he-toolbar` / `#he-presenter-style` / `#he-presenter-btn`），没装的 2 个。
+- campus-talk 与 darktech-keynote 各跑一遍 e2e，9/9 通过，页面异常 0。
+- `node --test scripts/test/presenter.test.js` 5/5。
+
+## [1.5.0] - 2026-11-06
+
+演讲者层。把「一个人对着投影仪讲」拆成两块屏：演讲者屏看备注和下一页，台下屏只显示当前页。纯本地、零依赖、不需要账号，贴上就生效。
+
+### 新增
+- `references/presenter-mode.md`：演讲者层的契约文档。入口、快捷键、备注字段、两条安装路线、与现场演示层和可编辑层的共存规则、能力边界。
+- `assets/presenter-layer.html`：drop-in 片段本体，一段 `<style id="he-presenter-style">` + 一段 `<script>`，贴 `</body>` 前就能用。
+- `scripts/inject-presenter.mjs`：一条命令装层。补 `data-slide-id` / `data-title`、插 `SPEAKER_NOTES` 骨架、贴运行时、顺手把本层元素补进可编辑层的下载清理名单。幂等，反复跑只刷新片段。
+- `scripts/test/presenter.test.js`：注入器回归测试，5 条，纯 Node 无浏览器。
+
+### 能力
+- **演讲者屏**：当前页 + 下一页两个 16:9 预览（只发 `postMessage` 不重载 iframe）、备注编辑器（按 `data-slide-id` 存 localStorage，300ms 防抖）、计时（总时长 / 本页 / 计划 / 剩余超时）、排练记录（本地留最近 5 次）、宫格选页、三档布局（均衡 / 页面优先 / 备注优先）。
+- **观众屏**：`window.open` 打开同文件 `?he-mode=audience`，藏掉 deck 自己的 HUD 和提示，只显示页面。
+- **现场工具**：激光笔（L）、圈选（C）、清除（X）、观众屏黑屏（B）/ 白屏（W）/ 冻结（F）。坐标归一化后传给观众屏，不受两端尺寸差异影响。
+- **同步与恢复**：`postMessage` + `BroadcastChannel` + `storage` 三通道，心跳 2.6 秒。状态机走 未连接 / 连接中 / 已同步 / 未同步 / 已冻结 / 弹窗被拦截 六态，「重新打开观众屏」始终可用，退出时发 `bye` 让观众窗收尾。
+- **翻页适配**：优先用 deck 暴露的 `window.__heDeck.go()`；没有就派发键盘事件让 deck 自己的翻页逻辑走（老 deck 不用改，代价是慢一拍）。当前页从 `.slide.is-active` 读，`MutationObserver` 兜住外部翻页。
+
+### 兼容处理
+- 入口用 `Shift+P` 而不是 `P`：`P` 已被现场演示层占用为打印。
+- 键盘接管挂 `window` 捕获阶段，比 deck 的 window 冒泡和另外两层的 document 捕获都早，演讲者视图里方向键只翻一次，不会双翻。
+- 演讲者视图内的点击 `stopPropagation()`，挡住 deck 的「点半屏翻页」，同时视图里的按钮照常能点。
+- 演讲者层所有 DOM 挂 `body`，一个不往 `.slide` 里塞，免疫可编辑层 `restore()` 的整段 innerHTML 重写。
+- 覆盖物自带 `@media print` 隐藏，不依赖 deck 的打印清单。
+
+### 验证
+- 浏览器实测（Chrome 157 headless + CDP，1440×813）：在两份 deck 上各跑 17 项，全通过，页面异常 0。覆盖进视图、观众窗弹开与同步、双端翻页一致、预览不重载、宫格选页、计时暂停重置、排练记录、自动翻页引导、激光圈选清除、黑屏白屏冻结恢复、观众窗关闭后再打开、备注落盘、快捷键面板、演前检查、退出恢复舞台。
+- 两条翻页路径都测了：有 `window.__heDeck` 钩子的（`examples/darktech-keynote.html`）和没有钩子靠模拟键盘兜底的。
+- `node --test scripts/test/presenter.test.js`：5/5。
+- `examples/darktech-keynote.html` 作为参照实现装好整层，附 12 页真实演讲备注（总计划 12.1 分钟），并加了 `window.__heDeck` 钩子。
+
+### 已知边界
+- 观众窗的全屏要自己按 F11。浏览器要求全屏必须由用户手势触发，演讲者屏的「检查」里那个按钮只能全屏演讲者自己那屏，文案已写明。
+- 同步只能证明软件页面状态，不能检测 HDMI / 转接器 / 投影仪线缆是否物理断开。
+- 老 deck 没有 `window.__heDeck` 时，翻页靠模拟键盘事件，预览会比主屏慢一拍。
 ## [1.4.2] - 2026-09-13
 
 第二轮公开审查后的转换器加固，每条修复都带最小 fixture 回归测试（scripts/test/render-fidelity.test.js）。

@@ -16,7 +16,7 @@ test('background raster becomes correctly positioned PPTX media and downgrade co
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'ppt-raster-'));
   try{
     const output=path.join(tmp,'out.pptx');
-    const result=await build([{bg:'rgb(255,255,255)',shapes:[],svgs:[],texts:[],
+    const result=await build([{bg:'rgb(255,255,255)',shapes:[],svgs:[],imgs:[],texts:[],
       backgroundRaster:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1sAAAAASUVORK5CYII='}],output);
     assert.equal(result.ok,1);
     const zip=await JSZip.loadAsync(fs.readFileSync(output));

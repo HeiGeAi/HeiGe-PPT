@@ -200,7 +200,8 @@ HeiGe-PPT/
 │   ├── deck-production-spec.md     # 单文件幻灯片硬规格（生产铁律）
 │   ├── anti-slop-checklist.md      # 反 AI 体检清单（交付门槛）
 │   ├── editable-layer.md           # 可编辑层（浏览器里直接改幻灯片文字 + 导出的 drop-in 代码）
-│   └── live-show-layer.md          # 现场演示层（全屏 / 截图点击放大 / 一键复制提示词的 drop-in 代码）
+│   ├── live-show-layer.md          # 现场演示层（全屏 / 截图点击放大 / 一键复制提示词的 drop-in 代码）
+│   └── presenter-mode.md           # 演讲者层（演讲者屏备注 + 观众屏同步 + 激光圈选 + 计时的契约）
 ├── examples/                       # 同一套方法论 × 六种场景气质
 │   ├── heige-pitch.html            # 凶悍/工业 · 产品路演
 │   ├── product-keynote.html        # 科技/未来 · 发布会 keynote（赛博霓虹）
@@ -210,9 +211,13 @@ HeiGe-PPT/
 │   └── campus-talk.html            # 张扬/人文 · 技术分享
 ├── scripts/                        # 双格式交付转换器
 │   ├── html2pptx.js                # HTML deck → 可编辑 PPTX（读渲染几何映射成原生文本框）
+│   ├── inject-presenter.mjs        # 一条命令给 deck 装上演讲者层（幂等）
+│   ├── validate-presenter-mode.mjs # 静态校验演讲者层与备注
+│   ├── test/                       # CI 测试（转换器 + 注入器）
 │   ├── package.json
 │   └── README.md
 ├── assets/
+│   ├── presenter-layer.html        # 演讲者层 drop-in 片段（单文件零依赖）
 │   └── previews/                   # README 用的样例预览图（WebP）
 ├── LICENSE
 ├── CHANGELOG.md
@@ -225,6 +230,39 @@ HeiGe-PPT/
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md)。
 
+### v1.5.5 (2026-11-06)
+- 🐛 修 img/canvas 截图张冠李戴（上一版引入）：混排时两张图对调，改用唯一序号对齐
+- 🐛 修 header/section/aside/figure 里的直接文字从 PPT 里消失
+- 🐛 修 display:none 切页的 deck 转出空白页，现在会自动恢复当前页 display
+- 🐛 修未加载图片静默消失、隐藏 SVG 误报红框、渐变页底色落白底
+- 🔍 以上 6 条来自本地 Kimi（k3）独立审计，逐条复现核实后修复
+
+### v1.5.4 (2026-11-06)
+- 🐛 **修转换器静默丢图**：`<img>` 和 `<canvas>` 此前被完全丢弃，base64 内嵌也一样，零警告。现在按渲染结果截图嵌入，位置尺寸对齐
+- 🐛 e2e 的备注键断言不再假定 `slide-NN` 命名，按文档用语义 slug 也能过
+- 🐛 注入器标题提取放宽：纯数字页不再退化成「第 N 页」
+- 📖 写清 `--target-minutes` 的 90% 上限规则
+- 📖 生产规格新增「导出 PPTX 的保真边界」：字体映射、描边字、图片、SVG 四类降级
+
+### v1.5.3 (2026-11-06)
+- 📖 三份文档补齐「三层脚本顺序」：可编辑层 → 现场演示层 → 演讲者层，装反会多出一条 `.he-showbar`
+- 📖 SKILL.md 补 `window.__heDeck` 翻页出口的说明
+
+### v1.5.2 (2026-11-06)
+- 🧪 三层共存实测入库（7 项）：编辑层 + 现场演示层 + 演讲者层同时装，验证编辑态点击不翻页、lightbox 只关图、视图里 F 是冻结不是全屏
+- 🧪 边界用例入库（6 项）：小屏 16:9 不裁切、自动翻页真的会翻且宫格打开时暂停
+- 🧪 CI 的 presenter job 现在跑三步共 22 项浏览器断言
+- 🔧 测试脚本的按键派发改到 body，贴近真实事件路径
+- ✅ 转换器首次本地全量实跑：6 份样例页数、越界、空页全部正常；装层前后 PPTX 完全一致
+
+### v1.5.1 (2026-11-06)
+- 🧪 CI 新增 presenter job：演讲者层的浏览器实测入库，650 行运行时终于有回归保护
+- 🧪 e2e 补「一次按键只翻一页」「备注按 id 落盘」两条断言，支持 --no-sandbox
+- 🔧 6 份样例的可编辑层与文档对齐：保存前剥 contenteditable，下载 HTML 的清理名单补齐三层覆盖物
+- 🎤 campus-talk 装上演讲者层 + 11 页真实备注，跨版式通用性有实跑证据
+
+### v1.5.0 (2026-11-06)
+演讲者层。演讲者屏看备注 + 下一页预览 + 计时 + 宫格，台下屏只显示当前页；带激光笔、圈选、观众屏黑屏/冻结、排练记录、三通道同步与断线恢复。`Shift+P` 进入，纯本地零依赖。
 ### v1.4.2 (2026-09-13)
 - 🔧 转换器保真修复一组：分割线边框四边取 max（border-bottom 不再变色/消失）、rgba alpha 保留（不再全转不透明）、opacity:0 祖先链内容不再漏进 PPT、内联 run 字号不再被压平、文本框 clamp 到页面边界、去重误杀改完整文本判重并 warn 可观测
 - 🛡 新增 --offline 离线模式：拦截不可信 deck 的一切非 file:// 网络请求
