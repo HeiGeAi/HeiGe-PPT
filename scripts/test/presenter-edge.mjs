@@ -127,8 +127,23 @@ async function openDeck(viewport) {
   await c.send('Runtime.enable');
   if (viewport) await c.send('Emulation.setDeviceMetricsOverride', { width: viewport[0], height: viewport[1], deviceScaleFactor: 1, mobile: false });
   await c.send('Page.navigate', { url });
-  await sleep(2400);
-  return c;
+  try {
+    await waitFor(c, 'Boolean(window.__hePresenter && Array.isArray(window.__HE_SPEAKER_NOTES__))', '演讲者层初始化');
+    return c;
+  } catch (error) {
+    c.close();
+    proc.kill();
+    server.close();
+    throw error;
+  }
+}
+async function waitFor(c, condition, label) {
+  const deadline = Date.now() + 20_000;
+  do {
+    if (await c.eval(condition).catch(() => false)) return;
+    await sleep(100);
+  } while (Date.now() < deadline);
+  throw new Error(`${label}未在 20 秒内完成：${basename(deckPath)}`);
 }
 const pressOn = (c) => (k, x = {}) => c.eval(`document.body.dispatchEvent(new KeyboardEvent('keydown',${JSON.stringify({ key: k, bubbles: true, cancelable: true, ...x })}))`);
 
@@ -185,10 +200,10 @@ const auto = await openDeck(null);
 await step('设 1 秒自动翻页后开启', async () => {
   await auto.eval(`window.__HE_SPEAKER_NOTES__.forEach((n) => { n.autoAdvanceSeconds = 1; })`);
   await pressOn(auto)('P', { shiftKey: true });
-  await sleep(1400);
+  await waitFor(auto, "window.__hePresenter.debugState().mode === 'presenter'", '进入演讲者视图');
   need((await auto.eval('window.__hePresenter.debugState().mode')) === 'presenter', '没进视图');
   await auto.eval(`document.getElementById('he-p-first').click()`);
-  await sleep(400);
+  await waitFor(auto, "window.__hePresenter.debugState().syncState === 'synced'", '观众屏同步');
   await auto.eval(`document.getElementById('he-p-auto-toggle').click()`);
   const label = await auto.eval(`document.getElementById('he-p-auto-toggle').textContent`);
   need(!label.includes('关闭'), `自动翻页没开：${label}`);
